@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1788171908206,
+      "tag": "0000_faithful_sentry",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788172918876,
+      "tag": "0001_typical_bruce_banner",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788174580394,
+      "tag": "0002_watery_jane_foster",
+      "breakpoints": true
+    }
+  ]
+}

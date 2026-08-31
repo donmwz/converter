@@ -24,3 +24,123 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes onboarding-gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes onboarding-card-enter {
+  from { opacity: 0; transform: translateX(28px) scale(.98); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes onboarding-glow-drift {
+  0%, 100% { transform: translate3d(-8%, -6%, 0) scale(1); }
+  50% { transform: translate3d(10%, 8%, 0) scale(1.16); }
+}
+
+.onboarding-card {
+  background-size: 180% 180%;
+  animation: onboarding-gradient-shift 9s ease-in-out infinite;
+}
+
+.onboarding-card-enter { animation: onboarding-card-enter .55s cubic-bezier(.22, 1, .36, 1) both, onboarding-gradient-shift 9s ease-in-out infinite; }
+
+.onboarding-card::before {
+  position: absolute;
+  z-index: 0;
+  width: 22rem;
+  height: 22rem;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 18%);
+  filter: blur(24px);
+  content: "";
+  inset: -9rem auto auto -7rem;
+  animation: onboarding-glow-drift 11s ease-in-out infinite;
+}
+
+.onboarding-card::after {
+  position: absolute;
+  z-index: 0;
+  width: 18rem;
+  height: 18rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 9999px;
+  content: "";
+  right: -5rem;
+  bottom: -7rem;
+  animation: onboarding-glow-drift 13s ease-in-out infinite reverse;
+}
+
+.onboarding-card--charcoal {
+  background-image: radial-gradient(circle at 78% 18%, rgb(255 255 255 / 12%), transparent 28%), linear-gradient(120deg, #111214, #25282d, #17191c, #30343a);
+}
+
+.onboarding-card--graphite {
+  background-image: radial-gradient(circle at 18% 78%, rgb(255 255 255 / 10%), transparent 30%), linear-gradient(120deg, #16181c, #30343a, #1d2025, #3b4047);
+}
+
+.onboarding-card--slate {
+  background-image: radial-gradient(circle at 78% 18%, rgb(255 255 255 / 11%), transparent 29%), linear-gradient(120deg, #101113, #292c31, #181a1e, #353940);
+}
+
+.auth-showcase {
+  background-image: radial-gradient(circle at 85% 18%, rgb(255 255 255 / 12%), transparent 28%), radial-gradient(circle at 14% 86%, rgb(255 255 255 / 8%), transparent 31%), linear-gradient(125deg, #101113, #25282d, #181a1e, #30343a);
+  background-size: 190% 190%;
+  animation: onboarding-gradient-shift 12s ease-in-out infinite;
+}
+
+.auth-showcase::before {
+  position: absolute;
+  z-index: 0;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 12%);
+  filter: blur(26px);
+  content: "";
+  top: -7rem;
+  right: -8rem;
+  animation: onboarding-glow-drift 12s ease-in-out infinite;
+}
+
+.auth-showcase::after {
+  position: absolute;
+  z-index: 0;
+  width: 13rem;
+  height: 13rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 9999px;
+  content: "";
+  bottom: -4rem;
+  left: -4rem;
+  animation: onboarding-glow-drift 10s ease-in-out infinite reverse;
+}
+
+@keyframes typewriter-write {
+  from { width: 0; }
+  to { width: 8.6ch; }
+}
+
+@keyframes typewriter-caret {
+  50% { border-color: transparent; }
+}
+
+@keyframes typewriter-caret-hide {
+  to { border-color: transparent; }
+}
+
+.typewriter {
+  display: inline-block;
+  width: 0;
+  overflow: hidden;
+  border-right: 0.09em solid currentColor;
+  white-space: nowrap;
+  animation: typewriter-write 1.35s steps(9, end) .35s forwards, typewriter-caret .75s step-end .35s 4, typewriter-caret-hide .01s linear 3.35s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-card, .onboarding-card-enter, .onboarding-card::before, .onboarding-card::after, .auth-showcase, .auth-showcase::before, .auth-showcase::after, .typewriter { animation: none; }
+  .typewriter { width: auto; border-right: 0; }
+}

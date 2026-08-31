@@ -1,0 +1,5 @@
+node_modules
+.next
+.git
+public/ffmpeg
+public/pdf.worker.min.mjs
