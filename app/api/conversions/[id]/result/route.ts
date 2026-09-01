@@ -29,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const key = `users/${ownerId}/conversions/${id}/${safeName}`;
-  await storeResult(key, new Uint8Array(await file.arrayBuffer()), file.type || "application/octet-stream");
+  await storeResult(key, new Uint8Array(await file.arrayBuffer()), file.type || "application/octet-stream", ownerId);
   await db.update(conversions).set({
     resultName: file.name,
     resultKey: key,
@@ -51,13 +51,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "İndirilebilir dosya bulunamadı." }, { status: 404 });
   }
 
-  const object = await getStoredResult(conversion.resultKey);
-  if (!object.Body) return NextResponse.json({ error: "Dosya bulunamadı." }, { status: 404 });
-  const bytes = await object.Body.transformToByteArray();
+  const object = await getStoredResult(conversion.resultKey, ownerId);
   const encodedName = encodeURIComponent(conversion.resultName);
-  return new Response(bytes.buffer as ArrayBuffer, {
+  return new Response(object.bytes, {
     headers: {
-      "Content-Type": object.ContentType ?? "application/octet-stream",
+      "Content-Type": object.contentType,
       "Content-Disposition": `attachment; filename*=UTF-8''${encodedName}`,
       "Cache-Control": "private, no-store",
     },

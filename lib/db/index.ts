@@ -9,5 +9,12 @@ if (!connectionString) {
   throw new Error("DATABASE_URL tanımlanmadı.");
 }
 
-const pool = new Pool({ connectionString });
+const isLocalDatabase = /(?:localhost|127\.0\.0\.1|postgres)(?::|\/)/i.test(connectionString);
+const pool = new Pool({
+  connectionString,
+  max: 5,
+  idleTimeoutMillis: 10_000,
+  connectionTimeoutMillis: 10_000,
+  ssl: isLocalDatabase ? undefined : { rejectUnauthorized: false },
+});
 export const db = drizzle({ client: pool, schema });

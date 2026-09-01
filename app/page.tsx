@@ -679,20 +679,20 @@ export default function Home() {
         key={`${keyPrefix}-${tool.from}-${tool.to}-${tool.title}`}
         type="button"
         onClick={() => handleToolClick(tool)}
-        className={`group flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${theme.border}`}
+        className={`group flex flex-col overflow-hidden rounded-xl border text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${privacyMode ? "border-white/10 bg-[#15191f] hover:border-white/20" : `border-gray-200 bg-white ${theme.border}`}`}
       >
-        <div className={`flex items-center justify-center gap-2 border-b border-gray-100/80 px-4 py-3 ${theme.header}`}>
-          <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${theme.badge}`}>
+        <div className={`flex items-center justify-center gap-2 border-b px-4 py-3 ${privacyMode ? "border-white/10 bg-[#1d222a]" : `border-gray-100/80 ${theme.header}`}`}>
+          <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${privacyMode ? "bg-white/[0.07] text-gray-200 ring-1 ring-inset ring-white/10" : theme.badge}`}>
             {tool.from}
           </span>
           <ArrowRight className="h-3.5 w-3.5 text-gray-300 transition group-hover:text-gray-400" />
-          <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${theme.badge}`}>
+          <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${privacyMode ? "bg-white/[0.07] text-gray-200 ring-1 ring-inset ring-white/10" : theme.badge}`}>
             {tool.to}
           </span>
         </div>
         <div className="flex flex-1 flex-col p-4">
-          <h3 className="text-sm font-semibold text-gray-900">{tool.title}</h3>
-          <p className="mt-1.5 text-xs leading-5 text-gray-500">{tool.description}</p>
+          <h3 className={`text-sm font-semibold ${privacyMode ? "text-gray-100" : "text-gray-900"}`}>{tool.title}</h3>
+          <p className={`mt-1.5 text-xs leading-5 ${privacyMode ? "text-gray-400" : "text-gray-500"}`}>{tool.description}</p>
         </div>
       </button>
     );
@@ -1078,7 +1078,7 @@ export default function Home() {
 
       {/* CONVERSION TOOLS GRID */}
 
-      <section className="border-b border-gray-200 bg-white px-6 py-14">
+      <section className={`border-b px-6 py-14 ${privacyMode ? "border-white/10 bg-[#0f1217]" : "border-gray-200 bg-white"}`}>
         <div className="mx-auto max-w-7xl">
           <div className="mb-8">
             <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Araçlar</p>
@@ -1179,22 +1179,22 @@ export default function Home() {
       <section className="border-b border-gray-200 bg-white px-6 py-14">
         <div className="mx-auto max-w-6xl">
           <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Formatlar</p>
-          <h2 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
+          <h2 className={`mt-1 text-2xl font-bold tracking-tight ${privacyMode ? "text-gray-100" : "text-gray-950"}`}>
             Desteklenen dosya türleri
           </h2>
-          <p className="mt-2 text-sm text-gray-500">
+          <p className={`mt-2 text-sm ${privacyMode ? "text-gray-400" : "text-gray-500"}`}>
             Yaygın belge, görsel, video ve ses formatlarının tamamı desteklenir.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {formatGroups.map((group) => (
-              <div key={group.label} className="rounded-xl border border-gray-200 bg-gray-50/50 p-4">
-                <p className="mb-3 text-xs font-semibold text-gray-500">{group.label}</p>
+              <div key={group.label} className={`rounded-xl border p-4 ${privacyMode ? "border-white/10 bg-white/[0.035]" : "border-gray-200 bg-gray-50/50"}`}>
+                <p className={`mb-3 text-xs font-semibold ${privacyMode ? "text-gray-300" : "text-gray-500"}`}>{group.label}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {group.formats.map((format) => (
                     <span
                       key={format}
-                      className={`rounded-md px-2 py-1 text-xs font-medium ${group.chip}`}
+                      className={`rounded-md px-2 py-1 text-xs font-medium ${privacyMode ? "bg-white/[0.07] text-gray-300 ring-1 ring-inset ring-white/10" : group.chip}`}
                     >
                       {format}
                     </span>
@@ -1376,27 +1376,24 @@ export default function Home() {
 
       {/* CTA */}
 
-      <section
-        id="pricing"
-        className="px-6 pb-24"
-      >
+      <section id="pricing" className={`px-6 pb-24 ${privacyMode ? "bg-[#0b0d10]" : ""}`}>
 
-        <div className="mx-auto max-w-6xl rounded-3xl bg-gray-100 px-8 py-16 text-center md:px-16">
+        <div className={`mx-auto max-w-6xl rounded-3xl border px-8 py-16 text-center md:px-16 ${privacyMode ? "border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.025]" : "border-transparent bg-gray-100"}`}>
 
           <div className="mx-auto max-w-2xl">
 
-            <h2 className="text-3xl font-bold tracking-tight text-gray-950 md:text-5xl">
+            <h2 className={`text-3xl font-bold tracking-tight md:text-5xl ${privacyMode ? "text-white" : "text-gray-950"}`}>
               Dönüştürmeye hazır mısınız?
             </h2>
 
-            <p className="mt-5 text-gray-500">
+            <p className={`mt-5 ${privacyMode ? "text-gray-400" : "text-gray-500"}`}>
               İlk dosyanızı yükleyin ve dönüştürmenin daha basit yolunu deneyimleyin.
             </p>
 
 
             <a
               href="#convert"
-              className="mt-8 inline-flex items-center gap-2 rounded-xl bg-gray-950 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-gray-800"
+              className={`mt-8 inline-flex items-center gap-2 rounded-xl px-7 py-3.5 text-sm font-semibold transition ${privacyMode ? "bg-white text-gray-950 hover:bg-gray-200" : "bg-gray-950 text-white hover:bg-gray-800"}`}
             >
 
               Dönüştürmeye başla

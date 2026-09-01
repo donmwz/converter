@@ -30,7 +30,7 @@ const sections = [
       "Tarayıcıda yapılan dönüşümlerde kaynak ve hedef dosyalar yalnızca bellekte (RAM) tutulur. İndirme bağlantıları geçici blob URL'leridir; sayfayı kapattığınızda veya yeni bir dönüşüm başlattığınızda bu veriler otomatik olarak serbest bırakılır.",
       "Sunucu tarafı dönüşümlerde (Word, PowerPoint, Excel → PDF gibi) dosyanız geçici bir klasöre yazılır, dönüştürme tamamlandıktan sonra yanıt gönderilir ve geçici klasör işlem bitiminde kalıcı olarak silinir — başarılı veya başarısız olsun.",
       "Gizli modda çıktı dosyası sunucuya kaydedilmez. Normal modda, tekrar indirme özelliğini kullanabilmeniz için yalnızca tamamlanan çıktı kullanıcı hesabınıza bağlı özel depolama alanında saklanır; kaynak dosyanın geçici kopyası işlem sonunda silinir.",
-      "Kayıtlı dönüşüm çıktıları için şu anda otomatik bir saklama süresi veya kullanıcı arayüzünden silme düğmesi uygulanmamıştır. Silme talebi için iletişim kanalını kullanabilirsiniz. Bu sınırlama giderilene kadar hassas dosyalarda gizli modu tercih edin.",
+      "Profilinizdeki Veriler ve hesap bölümünden tüm dönüşüm geçmişinizi ve kayıtlı dosyalarınızı kalıcı olarak silebilirsiniz. Hesabınızı silmeniz de bağlı oturumları, geçmişi ve dosyaları kaldırır.",
     ],
   },
   {
@@ -39,6 +39,7 @@ const sections = [
     content: [
       "Üretim ortamında tüm bağlantılar HTTPS üzerinden şifrelenir. Tarayıcı ile sunucu arasındaki veri aktarımı TLS ile korunur.",
       "Hesap şifreleriniz bcrypt algoritması ile hashlenerek saklanır; düz metin şifre hiçbir zaman veritabanına yazılmaz.",
+      "Kayıtlı çıktı dosyaları depolamaya yazılmadan önce AES-256-GCM ile şifrelenir. Her kullanıcı için ana sunucu sırrından ayrı bir dosya anahtarı türetilir; depolamadaki ham nesneler okunabilir belge içermez.",
       "Oturum belirteçleri (session token) SHA-256 ile hashlenerek veritabanında tutulur. Çerezler httpOnly bayrağı ile korunur ve JavaScript tarafından okunamaz.",
       "Normal modda dönüşüm bilgileri ile tamamlanan çıktı dosyası, profilinizden yeniden indirebilmeniz için hesabınıza bağlı olarak saklanır. İndirme isteğinde oturum ve dosya sahipliği yeniden doğrulanır.",
     ],
@@ -58,7 +59,7 @@ const sections = [
     content: [
       "Oturum çerezleri 30 gün sonra otomatik olarak sona erer. Çıkış yaptığınızda oturum belirteci sunucudan kalıcı olarak silinir.",
       "Şifreler minimum 8 karakter uzunluğunda olmalıdır ve kayıt sırasında güçlü hash ile saklanır.",
-      "Uygulamada şu anda kullanıcı tarafından başlatılan otomatik hesap silme akışı bulunmamaktadır. Hesap ve bağlı veriler için silme talebi iletişim sayfasından iletilebilir.",
+      "Profil ekranından verilerinizin tamamını ZIP olarak indirebilir, yalnızca kayıtlı dönüşüm verilerini silebilir veya hesabınızı ve bağlı tüm verileri kalıcı olarak kaldırabilirsiniz.",
     ],
   },
   {
