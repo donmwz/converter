@@ -42,10 +42,11 @@ function decrypt(body: Uint8Array, userId: string) {
 }
 
 const bucket = process.env.S3_BUCKET ?? "convertly-files";
+const endpoint = process.env.S3_ENDPOINT;
 const client = new S3Client({
-  region: "us-east-1",
-  endpoint: process.env.S3_ENDPOINT ?? "http://localhost:9000",
-  forcePathStyle: true,
+  region: process.env.S3_REGION ?? "us-east-1",
+  endpoint: endpoint || undefined,
+  forcePathStyle: Boolean(endpoint && !endpoint.includes("amazonaws.com")),
   credentials: {
     accessKeyId: process.env.S3_ACCESS_KEY ?? "convertly",
     secretAccessKey: process.env.S3_SECRET_KEY ?? "convertly-local-secret",

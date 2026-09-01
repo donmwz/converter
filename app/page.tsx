@@ -24,10 +24,12 @@ import {
   Download,
   Eye,
   LoaderCircle,
+  Sparkles,
   X,
 } from "lucide-react";
 import { conversionTools, cardThemes, categoryDescriptions, formatGroups, type ConversionTool } from "@/lib/conversion-tools";
 import UserNav from "@/app/components/user-nav";
+import ScrollAwareHeader from "@/app/components/scroll-aware-header";
 
 const categories = [
   { name: "Belgeler", icon: FileText },
@@ -49,7 +51,7 @@ const getFileExtension = (fileName: string) =>
   fileName.split(".").pop()?.toLowerCase() ?? "";
 
 const isDocumentFile = (file: File) =>
-  ["docx", "pdf", "ppt", "pptx", "txt", "xlsx", "csv"].includes(getFileExtension(file.name));
+  ["docx", "pdf", "ppt", "pptx", "html", "txt", "xlsx", "csv"].includes(getFileExtension(file.name));
 
 const isImageFile = (file: File) =>
   file.type.startsWith("image/") || ["heic", "heif", "svg", "ico"].includes(getFileExtension(file.name));
@@ -145,9 +147,16 @@ export default function Home() {
         .then((blob) => {
           const formData = new FormData();
           formData.append("file", new File([blob], value.name, { type: blob.type || "application/octet-stream" }));
-          return fetch(`/api/conversions/${id}/result`, { method: "POST", body: formData });
+          return fetch(`/api/conversions/${id}/result`, { method: "POST", body: formData })
+            .then(async (response) => {
+              if (response.ok) return;
+              const body = await response.json().catch(() => null);
+              throw new Error(body?.error ?? "Sonuç dosyası güvenli depolamaya kaydedilemedi.");
+            });
         });
-    }).catch(() => undefined);
+    }).catch((caught) => {
+      setError(caught instanceof Error ? caught.message : "Sonuç dosyası güvenli depolamaya kaydedilemedi.");
+    });
   };
 
   GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
@@ -174,7 +183,7 @@ export default function Home() {
       }
 
       const extension = getFileExtension(file.name);
-      const targetFormat = isImageFile(file) ? "png" : isDocumentFile(file) ? extension === "docx" || extension === "ppt" || extension === "pptx" ? "pdf" : extension === "pdf" ? "docx-visual" : extension === "xlsx" ? "csv" : "xlsx" : file.type.startsWith("video/") ? "mp4" : "mp3";
+      const targetFormat = isImageFile(file) ? "png" : isDocumentFile(file) ? ["docx", "html", "ppt", "pptx"].includes(extension) ? "pdf" : extension === "pdf" ? "docx-visual" : extension === "xlsx" ? "csv" : "xlsx" : file.type.startsWith("video/") ? "mp4" : "mp3";
       setSelectedCategory(isImageFile(file) ? "Görseller" : file.type.startsWith("video/") ? "Video" : isDocumentFile(file) ? "Belgeler" : "Ses");
       setOutputFormat(targetFormat);
       setSelectedFile(file);
@@ -251,7 +260,7 @@ export default function Home() {
   const handleToolClick = (tool: ConversionTool) => {
     const formatMap: Record<string, string> = {
       DOCX: "docx", PDF: "pdf", PNG: "png", WEBP: "webp", MP3: "mp3", MP4: "mp4",
-      TXT: "txt", CSV: "csv", XLSX: "xlsx", ICO: "ico", WebM: "webm", WAV: "wav",
+      TXT: "txt", HTML: "html", CSV: "csv", XLSX: "xlsx", ICO: "ico", WebM: "webm", WAV: "wav",
       OGG: "ogg", M4A: "m4a", AAC: "aac", MOV: "mov", JPG: "jpg", GIF: "gif",
       Çıkartma: "sticker", Dosya: "png",
     };
@@ -279,12 +288,12 @@ export default function Home() {
       const selectedExtension = getFileExtension(selectedFile.name);
       if (selectedExtension === "zip") {
         const archive = await JSZip.loadAsync(selectedFile);
-        const entry = Object.values(archive.files).find((file) => !file.dir && ["docx", "pdf", "ppt", "pptx", "xlsx", "csv", "png", "jpg", "jpeg", "webp", "gif", "svg", "heic", "mp3", "wav", "ogg", "opus", "m4a", "mp4", "mov", "webm"].includes(getFileExtension(file.name)));
+        const entry = Object.values(archive.files).find((file) => !file.dir && ["docx", "pdf", "ppt", "pptx", "html", "xlsx", "csv", "png", "jpg", "jpeg", "webp", "gif", "svg", "heic", "mp3", "wav", "ogg", "opus", "m4a", "mp4", "mov", "webm"].includes(getFileExtension(file.name)));
         if (!entry) throw new Error("Arşivde dönüştürülebilir bir dosya bulunamadı.");
         const extracted = new File([await entry.async("blob")], entry.name);
         setSelectedFile(extracted);
         setSelectedCategory(isImageFile(extracted) ? "Görseller" : extracted.type.startsWith("video/") ? "Video" : isDocumentFile(extracted) ? "Belgeler" : "Ses");
-        setOutputFormat(isImageFile(extracted) ? "png" : getFileExtension(extracted.name) === "pdf" ? "docx" : getFileExtension(extracted.name) === "xlsx" ? "csv" : "mp3");
+        setOutputFormat(isImageFile(extracted) ? "png" : getFileExtension(extracted.name) === "pdf" ? "docx" : getFileExtension(extracted.name) === "xlsx" ? "csv" : getFileExtension(extracted.name) === "html" ? "pdf" : "mp3");
         setError(`Arşiv açıldı: ${entry.name}. Dönüştürmek için tekrar tıklayın.`);
         return;
       }
@@ -329,6 +338,24 @@ export default function Home() {
             name: `${baseName}.txt`,
             url: URL.createObjectURL(new Blob([result.value], { type: "text/plain;charset=utf-8" })),
           });
+          return;
+        }
+
+        if (extension === "html") {
+          if (outputFormat !== "pdf") throw new Error("HTML dosyaları şu anda PDF'e dönüştürülebilir.");
+          const isLocalApp = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+          if (privacyMode && !isLocalApp) {
+            throw new Error("Gizli modda HTML → PDF dönüşümü yalnızca kendi bilgisayarınızda çalışan uygulamada kullanılabilir.");
+          }
+          const formData = new FormData();
+          formData.append("file", selectedFile);
+          formData.append("outputFormat", "pdf");
+          const response = await fetch("/api/convert/office", { method: "POST", body: formData });
+          if (!response.ok) {
+            const body = await response.json().catch(() => null);
+            throw new Error(body?.error ?? "HTML dosyası PDF'e dönüştürülemedi.");
+          }
+          setDownload({ name: `${baseName}.pdf`, url: URL.createObjectURL(await response.blob()) });
           return;
         }
 
@@ -738,7 +765,7 @@ export default function Home() {
       )}
 
       {/* NAVBAR */}
-      <header className="border-b border-gray-200 bg-white">
+      <ScrollAwareHeader className="border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
 
           <div className="flex items-center gap-12">
@@ -773,8 +800,14 @@ export default function Home() {
                 Nasıl çalışır
               </a>
 
-              <a href="/belge-ai" className="text-sm font-medium text-gray-600 transition hover:text-gray-950">
-                Belge AI
+              <a
+                href="/belge-ai"
+                className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-gray-950 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-violet-200/50"
+              >
+                <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-violet-400/20 to-fuchsia-400/0 opacity-0 transition group-hover:opacity-100" />
+                <Sparkles className="relative h-3.5 w-3.5 text-violet-200 transition group-hover:rotate-12 group-hover:text-white" />
+                <span className="relative">Belge AI</span>
+                <span className="relative rounded-full bg-white/12 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/80">Yeni</span>
               </a>
 
             </nav>
@@ -784,7 +817,7 @@ export default function Home() {
           <UserNav />
 
         </div>
-      </header>
+      </ScrollAwareHeader>
 
 
       {/* HERO */}
@@ -913,7 +946,7 @@ export default function Home() {
               id="file-upload"
               type="file"
               ref={fileInputRef}
-              accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/heic,image/heif,image/x-icon,.ico,.heic,.heif,.svg,video/mp4,video/quicktime,video/webm,audio/mpeg,audio/wav,audio/ogg,audio/aac,audio/mp4,audio/opus,.opus,.m4a,.zip,.docx,.pdf,.ppt,.pptx,.txt,.xlsx,.csv"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/heic,image/heif,image/x-icon,.ico,.heic,.heif,.svg,video/mp4,video/quicktime,video/webm,audio/mpeg,audio/wav,audio/ogg,audio/aac,audio/mp4,audio/opus,.opus,.m4a,.zip,.docx,.pdf,.ppt,.pptx,.html,text/html,.txt,.xlsx,.csv"
               className="hidden"
               onChange={handleFileChange}
             />
@@ -950,7 +983,9 @@ export default function Home() {
                     onChange={(event) => setOutputFormat(event.target.value)}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 outline-none transition focus:border-gray-950"
                   >
-                    {isSelectedDocument ? selectedFileExtension === "docx" ? (
+                    {isSelectedDocument ? selectedFileExtension === "html" ? (
+                      <option value="pdf">PDF</option>
+                    ) : selectedFileExtension === "docx" ? (
                       <>
                         <option value="pdf">PDF</option>
                         <option value="txt">TXT</option>

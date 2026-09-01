@@ -34,6 +34,7 @@ export async function POST(request: Request) {
     });
     return response;
   } catch (error) {
+    console.error("Giriş işlemi hatası:", error);
     if (error instanceof Error && /connect|ECONNREFUSED|DATABASE_URL/i.test(error.message)) {
       return databaseError();
     }

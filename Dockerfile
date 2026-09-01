@@ -10,7 +10,10 @@ COPY package*.json ./
 RUN npm ci --ignore-scripts
 COPY . ./
 RUN npm run prepare:conversion-assets
-RUN npm run build
+# Worker yalnızca dönüşüm uçlarını kullanır. Next.js'in build sırasında diğer
+# route modüllerini değerlendirebilmesi için gerçek veritabanına erişmeyen bir
+# yer tutucu yeterlidir; bu değer çalışma zamanı imajına ENV olarak eklenmez.
+RUN DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build npm run build
 
 ENV NODE_ENV=production
 EXPOSE 3000

@@ -15,12 +15,13 @@ export async function openRouterChat(messages: Message[], maxTokens = 1800) {
       "X-Title": "Convertly",
     },
     body: JSON.stringify({
-      model: process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini",
+      model: process.env.OPENROUTER_MODEL ?? "inclusionai/ling-3.0-flash-fin:free",
       messages,
       temperature: 0.2,
-      max_completion_tokens: maxTokens,
+      max_tokens: maxTokens,
     }),
     cache: "no-store",
+    signal: AbortSignal.timeout(50_000),
   });
 
   const body = await response.json().catch(() => null);

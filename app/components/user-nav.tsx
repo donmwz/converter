@@ -14,10 +14,28 @@ export default function UserNav() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch("/api/me", { cache: "no-store" })
-      .then(async (response) => response.ok ? response.json() as Promise<User> : null)
-      .then(setUser)
-      .catch(() => setUser(null));
+    let cancelled = false;
+    const loadUser = async () => {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const response = await fetch("/api/me", { cache: "no-store", credentials: "same-origin" });
+          if (cancelled) return;
+          if (response.ok) {
+            setUser(await response.json() as User);
+            return;
+          }
+          if (response.status === 401) {
+            setUser(null);
+            return;
+          }
+        } catch {
+          // Geçici ağ hatalarında kullanıcıyı çıkış yapmış gibi göstermeyin.
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+      }
+    };
+    void loadUser();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {

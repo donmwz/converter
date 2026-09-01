@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { forwardToConversionService, hasConversionService, isAuthorizedConversionServiceRequest } from "@/lib/conversion-service";
 
 export const runtime = "nodejs";
 
@@ -28,7 +29,14 @@ export function OPTIONS(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (hasConversionService()) {
+    return forwardToConversionService(request, "/api/convert/office");
+  }
+
   const corsHeaders = corsHeadersFor(request);
+  if (!isAuthorizedConversionServiceRequest(request)) {
+    return Response.json({ error: "Yetkisiz istek." }, { status: 401, headers: corsHeaders });
+  }
   const formData = await request.formData();
   const file = formData.get("file");
 
@@ -39,14 +47,23 @@ export async function POST(request: Request) {
   const targetFormat = isPresentation
     ? outputFormat
     : isSpreadsheet ? outputFormat
+    : extension === "html" ? "pdf"
     : extension === "docx" ? "pdf" : "docx";
 
-  if (!(file instanceof File) || !["docx", "pdf", "ppt", "pptx", "xlsx", "csv"].includes(extension ?? "") || !["pdf", "docx"].includes(String(targetFormat)) || (isSpreadsheet && targetFormat !== "pdf")) {
+  if (!(file instanceof File) || !["docx", "pdf", "ppt", "pptx", "xlsx", "csv", "html"].includes(extension ?? "") || !["pdf", "docx"].includes(String(targetFormat)) || ((isSpreadsheet || extension === "html") && targetFormat !== "pdf")) {
     return Response.json({ error: "Bu belge türü için seçilen hedef biçim desteklenmiyor." }, { status: 400, headers: corsHeaders });
   }
 
   if (file.size > maximumFileSize) {
     return Response.json({ error: "Dosya boyutu 100 MB sınırını aşıyor." }, { status: 413, headers: corsHeaders });
+  }
+
+  if (extension === "html") {
+    const source = Buffer.from(await file.arrayBuffer());
+    const sample = source.subarray(0, Math.min(source.length, 8192)).toString("utf8").replace(/^\uFEFF/, "");
+    if (source.subarray(0, Math.min(source.length, 4096)).includes(0) || !/<(?:!doctype\s+html|html|head|body|main|article|section|div|p|h[1-6])\b/i.test(sample)) {
+      return Response.json({ error: "HTML dosyasının içeriği doğrulanamadı." }, { status: 415, headers: corsHeaders });
+    }
   }
 
   const directory = await mkdtemp(join(tmpdir(), "convertly-office-"));
@@ -66,7 +83,7 @@ export async function POST(request: Request) {
         inputPath,
       ]);
       await execFileAsync("pdf2docx", ["convert", presentationPdfPath, "--docx_file", outputPath]);
-    } else if (extension === "docx" || isPresentation || isSpreadsheet) {
+    } else if (extension === "docx" || extension === "html" || isPresentation || isSpreadsheet) {
       await execFileAsync("soffice", [
         "--headless",
         "--convert-to",
@@ -83,7 +100,7 @@ export async function POST(request: Request) {
 
     const output = await readFile(outputPath);
     const isPdf = targetFormat === "pdf";
-    const fileName = `${file.name.replace(/\.(docx|pdf|ppt|pptx)$/i, "")}.${targetFormat}`;
+    const fileName = `${file.name.replace(/\.(docx|pdf|ppt|pptx|xlsx|csv|html)$/i, "")}.${targetFormat}`;
 
     return new Response(output, {
       headers: {

@@ -26,7 +26,7 @@ export const cardThemes: Record<ConversionTool["theme"], { header: string; badge
 };
 
 export const formatGroups = [
-  { label: "Belgeler", formats: ["PDF", "DOCX", "TXT", "XLSX", "CSV", "PPTX"], chip: "bg-sky-50 text-sky-800 ring-1 ring-sky-100" },
+  { label: "Belgeler", formats: ["PDF", "DOCX", "HTML", "TXT", "XLSX", "CSV", "PPTX"], chip: "bg-sky-50 text-sky-800 ring-1 ring-sky-100" },
   { label: "Görseller", formats: ["JPG", "PNG", "WEBP", "HEIC", "GIF", "SVG"], chip: "bg-emerald-50/80 text-emerald-800 ring-1 ring-emerald-100" },
   { label: "Video", formats: ["MP4", "MOV", "WebM"], chip: "bg-violet-50 text-violet-800 ring-1 ring-violet-100" },
   { label: "Ses", formats: ["MP3", "WAV", "OGG", "M4A", "AAC"], chip: "bg-slate-100 text-slate-700 ring-1 ring-slate-200" },
@@ -36,6 +36,7 @@ export const formatGroups = [
 export const conversionTools: ConversionTool[] = [
   { from: "PDF", to: "DOCX", title: "PDF Word Çevirme", description: "Tabloları, renkleri ve sayfa görünümünü koruyan DOCX oluşturun.", category: "Belgeler", theme: "rose" },
   { from: "DOCX", to: "PDF", title: "Word PDF Çevirme", description: "Word belgelerini paylaşımı kolay PDF dosyalarına çevirin.", category: "Belgeler", theme: "blue" },
+  { from: "HTML", to: "PDF", title: "HTML PDF Çevirme", description: "HTML sayfalarını PDF belgesi olarak dışa aktarın.", category: "Belgeler", theme: "slate" },
   { from: "PPTX", to: "PDF", title: "PowerPoint'ten PDF'e", description: "Sunumları tek tıkla PDF formatına dönüştürün.", category: "Belgeler", theme: "orange" },
   { from: "XLSX", to: "CSV", title: "Excel'den CSV'ye", description: "Excel tablolarını CSV formatına aktarın.", category: "Belgeler", theme: "emerald" },
   { from: "CSV", to: "XLSX", title: "CSV'den Excel'e", description: "CSV dosyalarını düzenlenebilir XLSX tablolarına çevirin.", category: "Belgeler", theme: "teal" },

@@ -43,3 +43,6 @@ next-env.d.ts
 # Generated conversion runtimes; recreated automatically after npm install.
 /public/ffmpeg/
 /public/pdf.worker.min.mjs
+
+.vercel
+.env*

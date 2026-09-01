@@ -19,6 +19,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Dosya adı gerekli." }, { status: 400 });
   }
 
+  // Create conversion record
   const [conversion] = await db.insert(conversions).values({
     userId,
     sourceName: sourceName.trim(),
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     options: { sourceFormat, outputFormat },
   }).returning({ id: conversions.id });
 
-  return NextResponse.json({ id: conversion.id });
+  return NextResponse.json({ id: conversion.id, status: "uploaded" });
 }
 
 export async function GET() {
