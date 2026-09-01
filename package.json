@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "predev": "npm run prepare:conversion-assets",
     "build": "next build",
     "prebuild": "npm run prepare:conversion-assets",
@@ -12,7 +12,7 @@
     "postinstall": "npm run prepare:conversion-assets",
     "prepare:conversion-assets": "node scripts/prepare-conversion-assets.mjs",
     "docker:build": "docker build -t convertly .",
-    "docker:run": "docker run --rm -p 3000:3000 convertly",
+    "docker:run": "docker compose up app --build",
     "db:generate": "drizzle-kit generate",
     "infra:up": "docker compose up -d postgres minio",
     "db:migrate": "drizzle-kit migrate"

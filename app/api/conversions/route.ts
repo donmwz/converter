@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getSessionUserId, sessionCookieName } from "@/lib/auth";
@@ -29,6 +29,29 @@ export async function POST(request: Request) {
   }).returning({ id: conversions.id });
 
   return NextResponse.json({ id: conversion.id });
+}
+
+export async function GET() {
+  const userId = await currentUserId();
+  if (!userId) return NextResponse.json({ error: "Oturum gerekli." }, { status: 401 });
+
+  const history = await db.query.conversions.findMany({
+    where: eq(conversions.userId, userId),
+    orderBy: [desc(conversions.createdAt)],
+    columns: {
+      id: true,
+      sourceName: true,
+      resultName: true,
+      status: true,
+      options: true,
+      uploadedAt: true,
+      convertedAt: true,
+      createdAt: true,
+      resultKey: true,
+    },
+  });
+
+  return NextResponse.json(history.map(({ resultKey, ...item }) => ({ ...item, downloadable: Boolean(resultKey) })));
 }
 
 export async function PATCH(request: Request) {

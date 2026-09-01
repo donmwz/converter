@@ -26,6 +26,8 @@ import {
   LoaderCircle,
   X,
 } from "lucide-react";
+import { conversionTools, cardThemes, categoryDescriptions, formatGroups, type ConversionTool } from "@/lib/conversion-tools";
+import UserNav from "@/app/components/user-nav";
 
 const categories = [
   { name: "Belgeler", icon: FileText },
@@ -35,18 +37,13 @@ const categories = [
   { name: "Arşiv", icon: Archive },
 ];
 
-const popularConversions = [
-  { from: "PDF", to: "DOCX" },
-  { from: "JPG", to: "PNG" },
-  { from: "PNG", to: "WEBP" },
-  { from: "MP4", to: "MP3" },
-  { from: "DOCX", to: "PDF" },
-  { from: "MOV", to: "MP4" },
-];
+const popularConversions = ["PDF-DOCX", "JPG-PNG", "PNG-WEBP", "MP4-MP3", "DOCX-PDF", "MOV-MP4"] as const;
 
-const supportedFormats = [
-  "PDF", "DOCX", "TXT", "XLSX", "CSV", "JPG", "PNG", "WEBP", "ÇIKARTMA", "FAVICON", "MP4", "MOV", "MP3", "WAV", "OGG",
-];
+const howItWorksSteps = [
+  { step: "01", title: "Yükle", description: "Dosyanızı sürükleyip bırakın veya bilgisayarınızdan seçin.", icon: Upload, accent: "bg-sky-50 text-sky-700 ring-1 ring-sky-100" },
+  { step: "02", title: "Dönüştür", description: "Hedef formatı seçin ve dönüştürmeyi başlatın.", icon: Zap, accent: "bg-violet-50 text-violet-700 ring-1 ring-violet-100" },
+  { step: "03", title: "İndir", description: "İşlem bitince dosyanızı indirin veya önizleyin.", icon: Download, accent: "bg-emerald-50/80 text-emerald-700 ring-1 ring-emerald-100" },
+] as const;
 
 const getFileExtension = (fileName: string) =>
   fileName.split(".").pop()?.toLowerCase() ?? "";
@@ -128,6 +125,9 @@ export default function Home() {
   const [isConverting, setIsConverting] = useState(false);
   const [conversionProgress, setConversionProgress] = useState(0);
   const [privacyMode, setPrivacyMode] = useState(false);
+  const [showAllTools, setShowAllTools] = useState(false);
+  const [showAllCategoryTools, setShowAllCategoryTools] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [documentPreviewHtml, setDocumentPreviewHtml] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [download, setDownloadState] = useState<{ name: string; url: string } | null>(null);
@@ -140,23 +140,19 @@ export default function Home() {
     if (!value || !conversionRecordRef.current) return;
     void conversionRecordRef.current.then((id) => {
       if (!id) return;
-      return fetch("/api/conversions", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, resultName: value.name }),
-      });
+      return fetch(value.url)
+        .then((response) => response.blob())
+        .then((blob) => {
+          const formData = new FormData();
+          formData.append("file", new File([blob], value.name, { type: blob.type || "application/octet-stream" }));
+          return fetch(`/api/conversions/${id}/result`, { method: "POST", body: formData });
+        });
     }).catch(() => undefined);
   };
 
   GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
-  const handleFileChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const files = event.target.files;
-
-    if (files && files.length > 0) {
-      const file = files[0];
+  const selectFile = (file: File) => {
 
       const isSupported =
         isImageFile(file) ||
@@ -178,18 +174,29 @@ export default function Home() {
       }
 
       const extension = getFileExtension(file.name);
-      const targetFormat = isImageFile(file) ? "png" : isDocumentFile(file) ? extension === "docx" || extension === "ppt" || extension === "pptx" ? "pdf" : extension === "pdf" ? "docx" : extension === "xlsx" ? "csv" : "xlsx" : file.type.startsWith("video/") ? "mp4" : "mp3";
+      const targetFormat = isImageFile(file) ? "png" : isDocumentFile(file) ? extension === "docx" || extension === "ppt" || extension === "pptx" ? "pdf" : extension === "pdf" ? "docx-visual" : extension === "xlsx" ? "csv" : "xlsx" : file.type.startsWith("video/") ? "mp4" : "mp3";
       setSelectedCategory(isImageFile(file) ? "Görseller" : file.type.startsWith("video/") ? "Video" : isDocumentFile(file) ? "Belgeler" : "Ses");
       setOutputFormat(targetFormat);
       setSelectedFile(file);
       setError("");
       setDownload(null);
-      conversionRecordRef.current = privacyMode ? null : fetch("/api/conversions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceName: file.name, sourceFormat: extension, outputFormat: targetFormat, privacyMode }),
-      }).then(async (response) => response.ok ? (await response.json()).id as string : null).catch(() => null);
-    }
+    conversionRecordRef.current = privacyMode ? null : fetch("/api/conversions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceName: file.name, sourceFormat: extension, outputFormat: targetFormat, privacyMode }),
+    }).then(async (response) => response.ok ? (await response.json()).id as string : null).catch(() => null);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) selectFile(file);
+  };
+
+  const handleFileDrop = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    setIsDraggingFile(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) selectFile(file);
   };
 
   const loadFfmpeg = async () => {
@@ -241,18 +248,16 @@ export default function Home() {
     }
   };
 
-  const handlePopularConversion = (from: string, to: string) => {
-    const isImageConversion = ["JPG", "PNG"].includes(from) && ["PNG", "WEBP"].includes(to);
-    const isMp3Conversion = ["MP4", "MOV"].includes(from) && to === "MP3";
+  const handleToolClick = (tool: ConversionTool) => {
+    const formatMap: Record<string, string> = {
+      DOCX: "docx", PDF: "pdf", PNG: "png", WEBP: "webp", MP3: "mp3", MP4: "mp4",
+      TXT: "txt", CSV: "csv", XLSX: "xlsx", ICO: "ico", WebM: "webm", WAV: "wav",
+      OGG: "ogg", M4A: "m4a", AAC: "aac", MOV: "mov", JPG: "jpg", GIF: "gif",
+      Çıkartma: "sticker", Dosya: "png",
+    };
 
-    if (!isImageConversion && !isMp3Conversion) {
-      setError("Bu dönüşüm henüz kullanıma açık değil.");
-      document.getElementById("convert")?.scrollIntoView({ behavior: "smooth" });
-      return;
-    }
-
-    setSelectedCategory(isImageConversion ? "Görseller" : "Video");
-    setOutputFormat(to.toLowerCase());
+    setSelectedCategory(tool.category);
+    setOutputFormat(tool.from === "PDF" && tool.to === "DOCX" ? "docx-visual" : formatMap[tool.to] ?? tool.to.toLowerCase());
     setError("");
     document.getElementById("convert")?.scrollIntoView({ behavior: "smooth" });
     fileInputRef.current?.click();
@@ -372,7 +377,7 @@ export default function Home() {
             for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
               const page = await pdf.getPage(pageNumber);
               const baseViewport = page.getViewport({ scale: 1 });
-              const scale = Math.min(1.5, 900 / baseViewport.width);
+              const scale = Math.min(2.5, 1600 / baseViewport.width);
               const viewport = page.getViewport({ scale });
               const canvas = document.createElement("canvas");
               canvas.width = Math.round(viewport.width);
@@ -396,15 +401,20 @@ export default function Home() {
                 wordChildren.push(new Paragraph({ children: [new PageBreak()] }));
               }
 
+              const aspectRatio = viewport.width / viewport.height;
+              const displayWidth = Math.min(720, Math.round(950 * aspectRatio));
+              const displayHeight = Math.round(displayWidth / aspectRatio);
+
               wordChildren.push(
                 new Paragraph({
+                  spacing: { before: 0, after: 0 },
                   children: [
                     new ImageRun({
                       data: imageData,
                       type: "png",
                       transformation: {
-                        width: Math.round(viewport.width * 0.64),
-                        height: Math.round(viewport.height * 0.64),
+                        width: displayWidth,
+                        height: displayHeight,
                       },
                     }),
                   ],
@@ -413,7 +423,14 @@ export default function Home() {
             }
 
             const visualDocument = new Document({
-              sections: [{ children: wordChildren }],
+              sections: [{
+                properties: {
+                  page: {
+                    margin: { top: 360, right: 360, bottom: 360, left: 360 },
+                  },
+                },
+                children: wordChildren,
+              }],
             });
             setDownload({
               name: `${baseName}-gorunum-korunmus.docx`,
@@ -645,6 +662,52 @@ export default function Home() {
   const selectedFileExtension = selectedFile ? getFileExtension(selectedFile.name) : "";
   const isSelectedDocument = Boolean(selectedFile && isDocumentFile(selectedFile));
 
+  const popularTools = popularConversions
+    .map((key) => {
+      const [from, to] = key.split("-");
+      return conversionTools.find((tool) => tool.from === from && tool.to === to);
+    })
+    .filter((tool): tool is ConversionTool => Boolean(tool));
+
+  const selectedCategoryTools = conversionTools.filter((tool) => tool.category === selectedCategory);
+  const visibleCategoryTools = showAllCategoryTools ? selectedCategoryTools : selectedCategoryTools.slice(0, 4);
+
+  const renderToolCard = (tool: ConversionTool, keyPrefix: string) => {
+    const theme = cardThemes[tool.theme];
+    return (
+      <button
+        key={`${keyPrefix}-${tool.from}-${tool.to}-${tool.title}`}
+        type="button"
+        onClick={() => handleToolClick(tool)}
+        className={`group flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${theme.border}`}
+      >
+        <div className={`flex items-center justify-center gap-2 border-b border-gray-100/80 px-4 py-3 ${theme.header}`}>
+          <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${theme.badge}`}>
+            {tool.from}
+          </span>
+          <ArrowRight className="h-3.5 w-3.5 text-gray-300 transition group-hover:text-gray-400" />
+          <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${theme.badge}`}>
+            {tool.to}
+          </span>
+        </div>
+        <div className="flex flex-1 flex-col p-4">
+          <h3 className="text-sm font-semibold text-gray-900">{tool.title}</h3>
+          <p className="mt-1.5 text-xs leading-5 text-gray-500">{tool.description}</p>
+        </div>
+      </button>
+    );
+  };
+
+  const sectionToggleButton = (label: string, onClick: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-medium text-gray-600 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+    >
+      {label}
+    </button>
+  );
+
   return (
     <main className={privacyMode ? "privacy-theme min-h-screen bg-[#0b0d10] text-gray-100" : "min-h-screen bg-[#fafafa] text-gray-900"}>
       <style>{`
@@ -710,27 +773,15 @@ export default function Home() {
                 Nasıl çalışır
               </a>
 
+              <a href="/belge-ai" className="text-sm font-medium text-gray-600 transition hover:text-gray-950">
+                Belge AI
+              </a>
+
             </nav>
 
           </div>
 
-          <div className="flex items-center gap-3">
-
-            <a
-              href="/login"
-              className="hidden rounded-lg px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-950 sm:block"
-            >
-              Giriş yap
-            </a>
-
-            <a
-              href="/onboarding"
-              className="rounded-lg bg-gray-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800"
-            >
-              Başlayın
-            </a>
-
-          </div>
+          <UserNav />
 
         </div>
       </header>
@@ -739,10 +790,22 @@ export default function Home() {
       {/* HERO */}
       <section
         id="convert"
-        className="px-6 pb-24 pt-20"
+        className="relative overflow-hidden px-6 pb-24 pt-20"
       >
 
-        <div className="mx-auto max-w-5xl text-center">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundColor: privacyMode ? "#0b0d10" : "#fafafa",
+            backgroundImage: privacyMode
+              ? "radial-gradient(circle at 8% 18%, rgba(30,64,86,.55), transparent 31%), radial-gradient(circle at 92% 14%, rgba(67,56,99,.48), transparent 30%), radial-gradient(circle at 78% 80%, rgba(24,78,63,.38), transparent 33%), radial-gradient(circle at 16% 84%, rgba(51,65,85,.42), transparent 35%)"
+              : "radial-gradient(circle at 8% 18%, rgba(224,242,254,.72), transparent 30%), radial-gradient(circle at 92% 14%, rgba(237,233,254,.68), transparent 30%), radial-gradient(circle at 78% 80%, rgba(209,250,229,.56), transparent 32%), radial-gradient(circle at 16% 84%, rgba(226,232,240,.86), transparent 34%)",
+          }}
+        />
+        <div aria-hidden="true" className={privacyMode ? "pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-[#0b0d10]" : "pointer-events-none absolute inset-0 bg-gradient-to-b from-white/20 via-transparent to-[#fafafa]"} />
+
+        <div className="relative mx-auto max-w-5xl text-center">
 
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 shadow-sm">
 
@@ -780,16 +843,23 @@ export default function Home() {
 
             <label
               htmlFor="file-upload"
+              onDragEnter={(event) => { event.preventDefault(); setIsDraggingFile(true); }}
+              onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; setIsDraggingFile(true); }}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsDraggingFile(false);
+              }}
+              onDrop={handleFileDrop}
               className="group block cursor-pointer"
             >
 
-              <div className="rounded-3xl border-2 border-dashed border-gray-300 bg-white p-4 transition hover:border-gray-500">
+              <div className={`rounded-3xl border-2 border-dashed p-4 transition-all duration-300 ${privacyMode ? isDraggingFile ? "scale-[1.01] border-slate-400 bg-[#15191f]/95 shadow-xl shadow-black/30" : "border-slate-600 bg-[#12161c]/90 shadow-lg shadow-black/20 hover:border-slate-400" : isDraggingFile ? "scale-[1.01] border-gray-700 bg-white shadow-xl shadow-gray-200/70" : "border-gray-300 bg-white/90 shadow-sm hover:border-gray-500 hover:shadow-md"}`}>
 
-                <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl bg-gray-50 px-6 py-12 transition group-hover:bg-gray-100">
+                <div className={`relative flex min-h-[320px] flex-col items-center justify-center overflow-hidden rounded-2xl px-6 py-12 transition-all duration-300 ${isDraggingFile ? "bg-gray-100" : "bg-gray-50 group-hover:bg-gray-100"}`}>
 
-                  <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm">
+                  <div className={`relative mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border shadow-sm backdrop-blur transition-all duration-300 ${privacyMode ? "border-white/10 bg-white/5" : "border-white/80 bg-white/90"} ${isDraggingFile ? "scale-110 shadow-lg" : "group-hover:-translate-y-0.5"}`}>
 
-                    <Upload className="h-7 w-7 text-gray-700" />
+                    <Upload className={`h-7 w-7 transition ${isDraggingFile ? "text-gray-950" : "text-gray-700"}`} />
 
                   </div>
 
@@ -809,26 +879,26 @@ export default function Home() {
                   ) : (
 
                     <>
-                      <p className="text-xl font-semibold text-gray-900">
-                        Dosyalarınızı buraya sürükleyin
+                      <p className="relative text-xl font-semibold text-gray-900">
+                        {isDraggingFile ? "Dosyayı buraya bırakın" : "Dosyalarınızı buraya sürükleyin"}
                       </p>
 
-                      <p className="mt-2 text-sm text-gray-500">
-                        veya bilgisayarınızdan göz atmak için tıklayın
+                      <p className="relative mt-2 text-sm text-gray-500">
+                        {isDraggingFile ? "Bıraktığınız anda dosyanız seçilecek" : "veya bilgisayarınızdan göz atmak için tıklayın"}
                       </p>
                     </>
 
                   )}
 
 
-                  <div className="mt-7 rounded-xl bg-gray-950 px-7 py-3 text-sm font-semibold text-white transition group-hover:bg-gray-800">
+                  <div className="relative mt-7 rounded-xl bg-gray-950 px-7 py-3 text-sm font-semibold text-white shadow-sm transition group-hover:bg-gray-800">
 
                     Dosya seç
 
                   </div>
 
 
-                  <p className="mt-5 text-xs text-gray-400">
+                  <p className="relative mt-5 text-xs text-gray-400">
                     Maksimum dosya boyutu: 100 MB
                   </p>
 
@@ -887,8 +957,8 @@ export default function Home() {
                       </>
                     ) : selectedFileExtension === "pdf" ? (
                       <>
-                        <option value="docx">DOCX (düzenlenebilir)</option>
-                        <option value="docx-visual">DOCX (görünümü koru)</option>
+                        <option value="docx-visual">DOCX (birebir görünüm — önerilen)</option>
+                        <option value="docx">DOCX (düzenlenebilir — beta)</option>
                         <option value="txt">TXT</option>
                         <option value="png-zip">PNG (tüm sayfalar ZIP)</option>
                         <option value="jpg-zip">JPG (tüm sayfalar ZIP)</option>
@@ -1006,11 +1076,38 @@ export default function Home() {
       </section>
 
 
+      {/* CONVERSION TOOLS GRID */}
+
+      <section className="border-b border-gray-200 bg-white px-6 py-14">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-8">
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Araçlar</p>
+            <h2 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
+              Hangi dosyayı neye dönüştürebilirsiniz?
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-gray-500">
+              Belgeler, görseller, videolar ve ses dosyalarınızı hızlıca dönüştürün.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {(showAllTools ? conversionTools : conversionTools.slice(0, 5)).map((tool) => renderToolCard(tool, "all"))}
+          </div>
+
+          {conversionTools.length > 5 && (
+            <div className="mt-8 text-center">
+              {sectionToggleButton(showAllTools ? "Daha az göster" : "Tümünü göster", () => setShowAllTools((value) => !value))}
+            </div>
+          )}
+        </div>
+      </section>
+
+
       {/* CATEGORY BAR */}
 
       <section
         id="tools"
-        className="border-y border-gray-200 bg-white px-6 py-10"
+        className="border-y border-gray-200 bg-gray-50/50 px-6 py-14"
       >
 
         <div className="mx-auto max-w-6xl">
@@ -1029,9 +1126,10 @@ export default function Home() {
                 <button
                   key={category.name}
                   type="button"
-                  onClick={() =>
-                    setSelectedCategory(category.name)
-                  }
+                  onClick={() => {
+                    setSelectedCategory(category.name);
+                    setShowAllCategoryTools(false);
+                  }}
                   className={
                     isActive
                       ? "flex items-center gap-2 rounded-xl border border-gray-950 bg-gray-950 px-5 py-3 text-sm font-medium text-white transition"
@@ -1051,6 +1149,26 @@ export default function Home() {
 
           </div>
 
+          <div className="mt-10">
+            <h3 className="text-lg font-semibold text-gray-950">{selectedCategory}</h3>
+            <p className="mt-1 mb-5 text-sm text-gray-500">
+              {categoryDescriptions[selectedCategory as keyof typeof categoryDescriptions]}
+            </p>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {visibleCategoryTools.map((tool) => renderToolCard(tool, "category"))}
+            </div>
+
+            {selectedCategoryTools.length > 4 && (
+              <div className="mt-6 text-center">
+                {sectionToggleButton(
+                  showAllCategoryTools ? "Daha az göster" : `Tümünü göster (${selectedCategoryTools.length})`,
+                  () => setShowAllCategoryTools((value) => !value),
+                )}
+              </div>
+            )}
+          </div>
+
         </div>
 
       </section>
@@ -1058,33 +1176,31 @@ export default function Home() {
 
       {/* SUPPORTED FORMATS */}
 
-      <section className="border-b border-gray-200 bg-white py-6">
-        <div className="mx-auto max-w-6xl px-6">
-          <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400">
+      <section className="border-b border-gray-200 bg-white px-6 py-14">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Formatlar</p>
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
             Desteklenen dosya türleri
+          </h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Yaygın belge, görsel, video ve ses formatlarının tamamı desteklenir.
           </p>
-        </div>
-        <div className="format-marquee overflow-hidden">
-          <div className="format-track flex w-max animate-[format-scroll_26s_linear_infinite] gap-3 px-3">
-            {[...supportedFormats, ...supportedFormats].map((format, index) => (
-              <span
-                key={`${format}-${index}`}
-                className="flex h-10 min-w-20 items-center justify-center rounded-full border border-gray-200 bg-gray-50 px-5 text-sm font-semibold text-gray-700"
-              >
-                {format}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="format-marquee mt-3 overflow-hidden">
-          <div className="format-track flex w-max animate-[format-scroll-reverse_30s_linear_infinite] gap-3 px-3">
-            {[...supportedFormats, ...supportedFormats].map((format, index) => (
-              <span
-                key={`reverse-${format}-${index}`}
-                className="flex h-10 min-w-20 items-center justify-center rounded-full border border-gray-200 bg-gray-50 px-5 text-sm font-semibold text-gray-700"
-              >
-                {format}
-              </span>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {formatGroups.map((group) => (
+              <div key={group.label} className="rounded-xl border border-gray-200 bg-gray-50/50 p-4">
+                <p className="mb-3 text-xs font-semibold text-gray-500">{group.label}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {group.formats.map((format) => (
+                    <span
+                      key={format}
+                      className={`rounded-md px-2 py-1 text-xs font-medium ${group.chip}`}
+                    >
+                      {format}
+                    </span>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -1093,62 +1209,24 @@ export default function Home() {
 
       {/* POPULAR CONVERSIONS */}
 
-      <section className="px-6 py-24">
+      <section className="px-6 py-14">
 
         <div className="mx-auto max-w-6xl">
 
-          <div className="mb-10">
-
-            <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
-              Popüler
-            </p>
-
-            <h2 className="text-3xl font-bold tracking-tight text-gray-950 md:text-4xl">
+          <div className="mb-8">
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Popüler</p>
+            <h2 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
               Popüler dönüştürmeler
             </h2>
-
-            <p className="mt-3 text-gray-500">
-              En yaygın dosya türlerinizi hızlıca dönüştürün.
+            <p className="mt-2 text-sm text-gray-500">
+              En çok kullanılan dönüşümlere tek tıkla ulaşın.
             </p>
-
           </div>
 
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
-            {popularConversions.map((conversion) => (
-
-              <button
-                key={conversion.from + "-" + conversion.to}
-                type="button"
-                onClick={() =>
-                  handlePopularConversion(conversion.from, conversion.to)
-                }
-                className="group flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-5 text-left transition hover:-translate-y-1 hover:border-gray-400 hover:shadow-lg"
-              >
-
-                <div className="flex items-center gap-4">
-
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-sm font-bold text-gray-700">
-                    {conversion.from}
-                  </div>
-
-
-                  <ArrowRight className="h-4 w-4 text-gray-400" />
-
-
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-sm font-bold text-gray-700">
-                    {conversion.to}
-                  </div>
-
-                </div>
-
-
-                <ArrowRight className="h-4 w-4 text-gray-300 transition group-hover:translate-x-1 group-hover:text-gray-700" />
-
-              </button>
-
-            ))}
+            {popularTools.map((tool) => renderToolCard(tool, "popular"))}
 
           </div>
 
@@ -1250,82 +1328,44 @@ export default function Home() {
 
       <section
         id="how-it-works"
-        className="px-6 py-24"
+        className="border-t border-gray-200 bg-gray-50/50 px-6 py-14"
       >
 
         <div className="mx-auto max-w-6xl">
 
-          <div className="text-center">
-
-            <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
-              Nasıl çalışır
-            </p>
-
-            <h2 className="text-3xl font-bold tracking-tight text-gray-950 md:text-4xl">
-              Üç basit adım
-            </h2>
-
-          </div>
+          <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Nasıl çalışır</p>
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
+            Üç basit adım
+          </h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Kayıt gerekmez — dosyanızı yükleyin, dönüştürün ve indirin.
+          </p>
 
 
-          <div className="mt-14 grid gap-8 md:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
 
-
-            {/* STEP 1 */}
-
-            <div className="rounded-2xl border border-gray-200 bg-white p-8">
-
-              <span className="text-sm font-bold text-gray-300">
-                01
-              </span>
-
-              <h3 className="mt-8 text-xl font-semibold text-gray-950">
-                Yükle
-              </h3>
-
-              <p className="mt-3 leading-7 text-gray-500">
-                Bilgisayarınızdan dönüştürmek istediğiniz dosyayı seçin.
-              </p>
-
-            </div>
-
-
-            {/* STEP 2 */}
-
-            <div className="rounded-2xl border border-gray-200 bg-white p-8">
-
-              <span className="text-sm font-bold text-gray-300">
-                02
-              </span>
-
-              <h3 className="mt-8 text-xl font-semibold text-gray-950">
-                Dönüştür
-              </h3>
-
-              <p className="mt-3 leading-7 text-gray-500">
-                Çıktı biçimini seçin ve dönüştürmeyi başlatın.
-              </p>
-
-            </div>
-
-
-            {/* STEP 3 */}
-
-            <div className="rounded-2xl border border-gray-200 bg-white p-8">
-
-              <span className="text-sm font-bold text-gray-300">
-                03
-              </span>
-
-              <h3 className="mt-8 text-xl font-semibold text-gray-950">
-                İndir
-              </h3>
-
-              <p className="mt-3 leading-7 text-gray-500">
-                İşlem tamamlandığında dönüştürülen dosyanızı indirin.
-              </p>
-
-            </div>
+            {howItWorksSteps.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.step}
+                  className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+                >
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${item.accent}`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-300">{item.step}</span>
+                  </div>
+                  <h3 className="text-base font-semibold text-gray-900">
+                    {item.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    {item.description}
+                  </p>
+                </div>
+              );
+            })}
 
           </div>
 
@@ -1394,21 +1434,14 @@ export default function Home() {
           <div className="flex items-center gap-6 text-sm text-gray-400">
 
             <a
-              href="#"
+              href="/gizlilik"
               className="transition hover:text-gray-900"
             >
               Gizlilik
             </a>
 
             <a
-              href="#"
-              className="transition hover:text-gray-900"
-            >
-              Koşullar
-            </a>
-
-            <a
-              href="#"
+              href="/iletisim"
               className="transition hover:text-gray-900"
             >
               İletişim

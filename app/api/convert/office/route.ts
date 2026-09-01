@@ -16,7 +16,7 @@ const baseCorsHeaders = {
 const corsHeadersFor = (request: Request) => {
   const origin = request.headers.get("origin");
 
-  if (origin && /^http:\/\/(localhost|127\.0\.0\.1):3000$/.test(origin)) {
+  if (origin && /^http:\/\/(localhost|127\.0\.0\.1):(3000|3001)$/.test(origin)) {
     return { ...baseCorsHeaders, "Access-Control-Allow-Origin": origin };
   }
 

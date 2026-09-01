@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { sessions } from "@/lib/db/schema";
+import { users } from "@/lib/db/schema";
 
 export const sessionCookieName = "convertly_session";
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -24,4 +25,21 @@ export async function getSessionUserId(token: string | undefined) {
     where: and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, new Date())),
   });
   return session?.userId ?? null;
+}
+
+export async function getCurrentUser(token: string | undefined) {
+  const userId = await getSessionUserId(token);
+  if (!userId) return null;
+  return db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: {
+      id: true,
+      email: true,
+      fullName: true,
+      accountType: true,
+      organizationName: true,
+      useCase: true,
+      createdAt: true,
+    },
+  });
 }
