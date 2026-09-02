@@ -9,7 +9,7 @@ from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate, Paragraph, 
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "output" / "pdf" / "convertly-sistem-mimarisi-ve-guvenlik-rehberi.pdf"
+OUT = ROOT / "public" / "belgeler" / "convertly-sistem-mimarisi-ve-guvenlik-rehberi.pdf"
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
 pdfmetrics.registerFont(TTFont("DejaVu", r"C:\Windows\Fonts\arial.ttf"))

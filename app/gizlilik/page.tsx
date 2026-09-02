@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bot, CircleDollarSign, Lock, ShieldCheck, Trash2, Eye, Server, KeyRound } from "lucide-react";
+import { ArrowUpRight, Bot, CircleDollarSign, FileText, Lock, ShieldCheck, Trash2, Eye, Server, KeyRound } from "lucide-react";
 import SiteShell from "@/app/components/site-shell";
 
 const sections = [
@@ -102,6 +102,27 @@ export default function PrivacyPage() {
             Gizlilik, güvenlik ve şeffaflık yaklaşımımızın temelidir. Dosyaların, hesap
             bilgilerinin ve AI işlemlerinin gerçekte nasıl işlendiğini aşağıda açıkça açıklıyoruz.
           </p>
+
+          <a
+            href="/belgeler/convertly-sistem-mimarisi-ve-guvenlik-rehberi.pdf"
+            target="_blank"
+            rel="noreferrer"
+            className="group mt-10 flex flex-col gap-6 overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50/60 p-7 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span className="flex items-start gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-lg shadow-violet-200">
+                <FileText className="h-6 w-6" />
+              </span>
+              <span>
+                <span className="block text-xs font-semibold uppercase tracking-wider text-violet-600">Herkese açık şeffaflık belgesi</span>
+                <span className="mt-1 block text-lg font-semibold text-gray-950">Sistem Mimarisi ve Güvenlik Rehberi</span>
+                <span className="mt-1 block text-sm leading-6 text-gray-500">Kullanılan servisleri, veri akışlarını, AI sınırlarını, 2FA&apos;yı ve dosya şifrelemeyi akış şemalarıyla inceleyin.</span>
+              </span>
+            </span>
+            <span className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-violet-700">
+              PDF&apos;yi görüntüle <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </span>
+          </a>
 
           <div className="mt-14 space-y-10">
             {sections.map((section) => {
