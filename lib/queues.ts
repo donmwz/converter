@@ -8,7 +8,7 @@ export type ConversionJob = {
   sourceFormat: string;
   outputFormat: string;
   privacyMode: boolean;
-  options?: Record<string, any>;
+  options?: Record<string, unknown>;
 };
 
 const redisConfig = {

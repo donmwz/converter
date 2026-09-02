@@ -4,6 +4,7 @@ import { getSessionUserId, sessionCookieName } from "@/lib/auth";
 import { openRouterChat, relevantPassages, splitDocument } from "@/lib/openrouter";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 const maximumTextLength = 300_000;
 
 async function authenticated() {
@@ -63,12 +64,12 @@ export async function POST(request: Request) {
         partials.push(await openRouterChat([
           { role: "system", content: "Verilen belge bölümünü yalnızca içeriğine dayanarak yapılandırılmış biçimde özetle. Belge Başlığı, Genel Bakış, Temel Noktalar, Önemli Bulgular, Önemli Sayısal Veriler ve Sonuç başlıklarından uygun olanları Markdown başlıklarıyla kullan. Ana fikirleri, tarihleri, kararları ve sayısal verileri koru; yeni bilgi ekleme. Türkçe yaz." },
           { role: "user", content: `Bölüm ${index + 1}/${chunks.length}:\n\n${chunks[index]}` },
-        ], 1000));
+        ], 1600));
       }
       const result = partials.length === 1 ? partials[0] : await openRouterChat([
         { role: "system", content: "Bölüm özetlerini tekrarları kaldırarak profesyonel ve yapılandırılmış bir Türkçe özete dönüştür. Belge Başlığı, Genel Bakış, Temel Noktalar, Önemli Bulgular, Önemli Sayısal Veriler ve Sonuç başlıklarından belgeye uygun olanları kullan. Markdown başlıkları ve madde işaretleri kullan. Kaynakta olmayan bilgi ekleme." },
         { role: "user", content: partials.map((item, index) => `BÖLÜM ${index + 1}\n${item}`).join("\n\n") },
-      ], 1800);
+      ], Math.min(4200, 2200 + chunks.length * 180));
       return NextResponse.json({ result });
     }
 
@@ -86,6 +87,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ error: "Geçersiz işlem." }, { status: 400 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "AI işlemi tamamlanamadı." }, { status: 500 });
+    console.error("Belge AI işlemi başarısız:", error);
+    return NextResponse.json(
+      { error: "Şu anda AI sunucularımızda geçici bir sorun yaşıyoruz. Lütfen kısa bir süre sonra tekrar deneyin." },
+      { status: 503 },
+    );
   }
 }

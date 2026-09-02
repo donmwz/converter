@@ -1,9 +1,11 @@
 import { hash } from "bcryptjs";
+import { randomInt } from "crypto";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { createSession, sessionCookieName } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { sendVerificationEmail } from "@/lib/brevo";
+import { registrationCookieName, sealPendingRegistration, verificationCodeHash } from "@/lib/registration-verification";
 
 const databaseError = () =>
   NextResponse.json(
@@ -44,28 +46,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Bu e-posta zaten kayıtlı." }, { status: 409 });
     }
 
-    const [user] = await db
-      .insert(users)
-      .values({
+    const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+    const pendingToken = await sealPendingRegistration({
         email: normalizedEmail,
         passwordHash: await hash(password, 12),
+        codeHash: verificationCodeHash(normalizedEmail, code),
         fullName: fullName.trim(),
         accountType,
         organizationName:
           typeof organizationName === "string" && organizationName.trim() ? organizationName.trim() : null,
         useCase,
-      })
-      .returning({ id: users.id });
-
-    const session = await createSession(user.id);
-    const response = NextResponse.json({ ok: true });
-    response.cookies.set(sessionCookieName, session.token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      expires: session.expiresAt,
-      path: "/",
-    });
+      });
+    await sendVerificationEmail({ email: normalizedEmail, name: fullName.trim(), code });
+    const response = NextResponse.json({ verificationRequired: true, email: normalizedEmail });
+    response.cookies.set(registrationCookieName, pendingToken, { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", maxAge: 600, path: "/api/auth/register" });
     return response;
   } catch (error) {
     console.error("Kayıt işlemi hatası:", error);

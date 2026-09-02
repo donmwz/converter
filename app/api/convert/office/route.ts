@@ -24,6 +24,13 @@ const corsHeadersFor = (request: Request) => {
   return baseCorsHeaders;
 };
 
+const presentableHtml = (html: string) => {
+  const styles = `<style id="convertly-document-style">html{min-width:100%;background:#eef1f5;overflow-x:auto}body{box-sizing:border-box;display:flex!important;min-height:100vh;width:100%!important;margin:0!important;padding:32px 16px!important;flex-direction:column!important;align-items:center!important;background:#eef1f5!important;color:#111827;font-family:Arial,Helvetica,sans-serif}body>div,body>.page,body>[id^="page"]{position:relative!important;float:none!important;left:auto!important;right:auto!important;flex:0 0 auto!important;margin:0 auto 24px!important;max-width:none!important;background:#fff;box-shadow:0 18px 50px rgba(15,23,42,.12);overflow:hidden}body>div img,body>.page img,body>[id^="page"] img{max-width:none!important;height:auto} @media(max-width:720px){body{padding:12px 6px!important}}</style>`;
+  if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, `${styles}</head>`);
+  if (/<html/i.test(html)) return html.replace(/<html[^>]*>/i, (tag) => `${tag}<head>${styles}</head>`);
+  return `<!doctype html><html><head><meta charset="utf-8">${styles}</head><body><main style="width:min(100%,960px);margin:auto">${html}</main></body></html>`;
+};
+
 export function OPTIONS(request: Request) {
   return new Response(null, { headers: corsHeadersFor(request) });
 }
@@ -47,10 +54,12 @@ export async function POST(request: Request) {
   const targetFormat = isPresentation
     ? outputFormat
     : isSpreadsheet ? outputFormat
-    : extension === "html" ? "pdf"
+    : extension === "html" || extension === "htm" ? "pdf"
+    : extension === "pdf" && outputFormat === "html" ? "html"
     : extension === "docx" ? "pdf" : "docx";
 
-  if (!(file instanceof File) || !["docx", "pdf", "ppt", "pptx", "xlsx", "csv", "html"].includes(extension ?? "") || !["pdf", "docx"].includes(String(targetFormat)) || ((isSpreadsheet || extension === "html") && targetFormat !== "pdf")) {
+  const isHtml = extension === "html" || extension === "htm";
+  if (!(file instanceof File) || !["docx", "pdf", "ppt", "pptx", "xlsx", "csv", "html", "htm"].includes(extension ?? "") || !["pdf", "docx", "html"].includes(String(targetFormat)) || ((isSpreadsheet || isHtml) && targetFormat !== "pdf") || (targetFormat === "html" && extension !== "pdf")) {
     return Response.json({ error: "Bu belge türü için seçilen hedef biçim desteklenmiyor." }, { status: 400, headers: corsHeaders });
   }
 
@@ -58,10 +67,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Dosya boyutu 100 MB sınırını aşıyor." }, { status: 413, headers: corsHeaders });
   }
 
-  if (extension === "html") {
+  if (isHtml) {
     const source = Buffer.from(await file.arrayBuffer());
     const sample = source.subarray(0, Math.min(source.length, 8192)).toString("utf8").replace(/^\uFEFF/, "");
-    if (source.subarray(0, Math.min(source.length, 4096)).includes(0) || !/<(?:!doctype\s+html|html|head|body|main|article|section|div|p|h[1-6])\b/i.test(sample)) {
+    if (source.subarray(0, Math.min(source.length, 4096)).includes(0) || !/<(?:!doctype\s+html|html|head|body|meta|title|main|article|section|div|p|h[1-6]|table|ul|ol|li|a|span|form)\b/i.test(sample)) {
       return Response.json({ error: "HTML dosyasının içeriği doğrulanamadı." }, { status: 415, headers: corsHeaders });
     }
   }
@@ -73,7 +82,15 @@ export async function POST(request: Request) {
 
   try {
     await writeFile(inputPath, Buffer.from(await file.arrayBuffer()));
-    if (isPresentation && targetFormat === "docx") {
+    if (extension === "pdf" && targetFormat === "html") {
+      try {
+        const { stdout } = await execFileAsync("pdftohtml", ["-q", "-s", "-dataurls", "-enc", "UTF-8", "-stdout", inputPath], { maxBuffer: maximumFileSize });
+        await writeFile(outputPath, presentableHtml(stdout));
+      } catch {
+        const { stdout } = await execFileAsync("pdftohtml", ["-q", "-s", "-i", "-enc", "UTF-8", "-stdout", inputPath], { maxBuffer: maximumFileSize });
+        await writeFile(outputPath, presentableHtml(stdout));
+      }
+    } else if (isPresentation && targetFormat === "docx") {
       await execFileAsync("soffice", [
         "--headless",
         "--convert-to",
@@ -83,7 +100,7 @@ export async function POST(request: Request) {
         inputPath,
       ]);
       await execFileAsync("pdf2docx", ["convert", presentationPdfPath, "--docx_file", outputPath]);
-    } else if (extension === "docx" || extension === "html" || isPresentation || isSpreadsheet) {
+    } else if (extension === "docx" || isHtml || isPresentation || isSpreadsheet) {
       await execFileAsync("soffice", [
         "--headless",
         "--convert-to",
@@ -100,19 +117,21 @@ export async function POST(request: Request) {
 
     const output = await readFile(outputPath);
     const isPdf = targetFormat === "pdf";
-    const fileName = `${file.name.replace(/\.(docx|pdf|ppt|pptx|xlsx|csv|html)$/i, "")}.${targetFormat}`;
+    const isHtmlOutput = targetFormat === "html";
+    const fileName = `${file.name.replace(/\.(docx|pdf|ppt|pptx|xlsx|csv|html|htm)$/i, "")}.${targetFormat}`;
 
     return new Response(output, {
       headers: {
         "Content-Type": isPdf
           ? "application/pdf"
-          : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          : isHtmlOutput ? "text/html; charset=utf-8" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "Content-Disposition": `attachment; filename="${fileName}"`,
         "Cache-Control": "no-store",
         ...corsHeaders,
       },
     });
-  } catch {
+  } catch (error) {
+    console.error("Ofis dönüştürme hatası:", error);
     return Response.json(
       { error: "Dosya dönüştürülemedi. Yerel LibreOffice ve PDF düzen analizi hizmetinin çalıştığından emin olun." },
       { status: 500, headers: corsHeaders }

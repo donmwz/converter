@@ -29,7 +29,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const key = `users/${ownerId}/conversions/${id}/${safeName}`;
-  await storeResult(key, new Uint8Array(await file.arrayBuffer()), file.type || "application/octet-stream", ownerId);
+  try {
+    await storeResult(key, new Uint8Array(await file.arrayBuffer()), file.type || "application/octet-stream", ownerId);
+  } catch (error) {
+    console.error("Dönüşüm sonucu depolanamadı:", error);
+    const configurationError = error instanceof Error && /AccessKey|InvalidAccessKeyId|SignatureDoesNotMatch|S3_BUCKET|FILE_ENCRYPTION_KEY|credential/i.test(error.message);
+    return NextResponse.json({ error: configurationError ? "Güvenli depolama yapılandırması geçersiz. Yönetici S3 erişim bilgilerini kontrol etmelidir." : "Sonuç dosyası güvenli depolamaya kaydedilemedi." }, { status: 503 });
+  }
   await db.update(conversions).set({
     resultName: file.name,
     resultKey: key,

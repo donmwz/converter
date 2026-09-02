@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# Environment files remain private; the placeholder template is public.
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -43,6 +44,3 @@ next-env.d.ts
 # Generated conversion runtimes; recreated automatically after npm install.
 /public/ffmpeg/
 /public/pdf.worker.min.mjs
-
-.vercel
-.env*

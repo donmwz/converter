@@ -6,29 +6,32 @@ export async function openRouterChat(messages: Message[], maxTokens = 1800) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY yapılandırılmamış.");
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001",
-      "X-Title": "Convertly",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENROUTER_MODEL ?? "inclusionai/ling-3.0-flash-fin:free",
-      messages,
-      temperature: 0.2,
-      max_tokens: maxTokens,
-    }),
-    cache: "no-store",
-    signal: AbortSignal.timeout(50_000),
-  });
-
-  const body = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(body?.error?.message ?? "OpenRouter isteği başarısız oldu.");
-  const content = body?.choices?.[0]?.message?.content;
-  if (typeof content !== "string" || !content.trim()) throw new Error("AI boş yanıt döndürdü.");
-  return content.trim();
+  const conversation = [...messages];
+  const parts: string[] = [];
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001", "X-Title": "Convertly" },
+      body: JSON.stringify({ model: process.env.OPENROUTER_MODEL ?? "inclusionai/ling-3.0-flash-fin:free", messages: conversation, temperature: 0.2, max_tokens: maxTokens }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(75_000),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(body?.error?.message ?? "OpenRouter isteği başarısız oldu.");
+    const content = body?.choices?.[0]?.message?.content;
+    if (typeof content !== "string" || !content.trim()) {
+      if (attempt === 0) {
+        conversation.push({ role: "user", content: "Yanıt oluşturulamadı. Belge içeriğine dayanarak istenen yanıtı şimdi eksiksiz üret." });
+        continue;
+      }
+      throw new Error("AI_PROVIDER_EMPTY_RESPONSE");
+    }
+    parts.push(content.trim());
+    if (body?.choices?.[0]?.finish_reason !== "length") break;
+    conversation.push({ role: "assistant", content });
+    conversation.push({ role: "user", content: "Yanıt token sınırında kesildi. Kaldığın yerden, tekrar etmeden devam et ve bütün eksik bölümleri tamamla." });
+  }
+  return parts.join("\n\n").trim();
 }
 
 export function splitDocument(text: string, maxCharacters = 10000) {

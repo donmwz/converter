@@ -7,7 +7,7 @@ import mammoth from "mammoth";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { Document, ImageRun, Packer, PageBreak, Paragraph } from "docx";
+import { AlignmentType, Document, ImageRun, Packer, Paragraph, SectionType } from "docx";
 import {
   Upload,
   FileText,
@@ -26,10 +26,17 @@ import {
   LoaderCircle,
   Sparkles,
   X,
+  Layers3,
+  Code2,
+  PanelsTopLeft,
+  PackageOpen,
 } from "lucide-react";
 import { conversionTools, cardThemes, categoryDescriptions, formatGroups, type ConversionTool } from "@/lib/conversion-tools";
 import UserNav from "@/app/components/user-nav";
 import ScrollAwareHeader from "@/app/components/scroll-aware-header";
+import WelcomeGuide from "@/app/components/welcome-guide";
+
+GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
 const categories = [
   { name: "Belgeler", icon: FileText },
@@ -47,11 +54,18 @@ const howItWorksSteps = [
   { step: "03", title: "İndir", description: "İşlem bitince dosyanızı indirin veya önizleyin.", icon: Download, accent: "bg-emerald-50/80 text-emerald-700 ring-1 ring-emerald-100" },
 ] as const;
 
+const upcomingFeatures = [
+  { title: "Toplu dönüştürme", description: "Birden fazla dosyayı tek işlemde dönüştürme.", icon: Layers3 },
+  { title: "Geliştirici API'si", description: "Dönüşümleri kendi uygulamanıza bağlama.", icon: Code2 },
+  { title: "Tarayıcı eklentisi", description: "Dosyaları bulunduğunuz sayfadan hızlıca dönüştürme.", icon: PanelsTopLeft },
+  { title: "RAR ve 7z", description: "ZIP'e ek olarak daha fazla arşiv biçimi.", icon: PackageOpen },
+] as const;
+
 const getFileExtension = (fileName: string) =>
   fileName.split(".").pop()?.toLowerCase() ?? "";
 
 const isDocumentFile = (file: File) =>
-  ["docx", "pdf", "ppt", "pptx", "html", "txt", "xlsx", "csv"].includes(getFileExtension(file.name));
+  ["docx", "pdf", "ppt", "pptx", "html", "htm", "txt", "xlsx", "csv"].includes(getFileExtension(file.name));
 
 const isImageFile = (file: File) =>
   file.type.startsWith("image/") || ["heic", "heif", "svg", "ico"].includes(getFileExtension(file.name));
@@ -159,8 +173,6 @@ export default function Home() {
     });
   };
 
-  GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-
   const selectFile = (file: File) => {
 
       const isSupported =
@@ -183,7 +195,7 @@ export default function Home() {
       }
 
       const extension = getFileExtension(file.name);
-      const targetFormat = isImageFile(file) ? "png" : isDocumentFile(file) ? ["docx", "html", "ppt", "pptx"].includes(extension) ? "pdf" : extension === "pdf" ? "docx-visual" : extension === "xlsx" ? "csv" : "xlsx" : file.type.startsWith("video/") ? "mp4" : "mp3";
+      const targetFormat = isImageFile(file) ? "png" : isDocumentFile(file) ? ["docx", "html", "htm", "ppt", "pptx"].includes(extension) ? "pdf" : extension === "pdf" ? "docx-visual" : extension === "xlsx" ? "csv" : "xlsx" : file.type.startsWith("video/") ? "mp4" : "mp3";
       setSelectedCategory(isImageFile(file) ? "Görseller" : file.type.startsWith("video/") ? "Video" : isDocumentFile(file) ? "Belgeler" : "Ses");
       setOutputFormat(targetFormat);
       setSelectedFile(file);
@@ -307,7 +319,7 @@ export default function Home() {
             const isLocalApp = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
 
             if (privacyMode && !isLocalApp) {
-              throw new Error("Gizli modda Word → PDF dönüşümü yalnızca kendi bilgisayarınızda çalışan uygulamada kullanılabilir. Docker ile yerel uygulamayı başlatın.");
+              throw new Error("Word → PDF sunucu işlemi gerektirir ve gizli modda kullanılamaz. Bu dönüşüm için gizli modu kapatın.");
             }
 
             const formData = new FormData();
@@ -341,7 +353,7 @@ export default function Home() {
           return;
         }
 
-        if (extension === "html") {
+        if (extension === "html" || extension === "htm") {
           if (outputFormat !== "pdf") throw new Error("HTML dosyaları şu anda PDF'e dönüştürülebilir.");
           const isLocalApp = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
           if (privacyMode && !isLocalApp) {
@@ -360,6 +372,19 @@ export default function Home() {
         }
 
         if (extension === "pdf") {
+          if (outputFormat === "html") {
+            const formData = new FormData();
+            formData.append("file", selectedFile);
+            formData.append("outputFormat", "html");
+            const response = await fetch("/api/convert/office", { method: "POST", body: formData });
+            if (!response.ok) {
+              const body = await response.json().catch(() => null);
+              throw new Error(body?.error ?? "PDF dosyası HTML'e dönüştürülemedi.");
+            }
+            setDownload({ name: `${baseName}.html`, url: URL.createObjectURL(await response.blob()) });
+            return;
+          }
+
           if (outputFormat === "docx") {
             const isLocalApp = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
 
@@ -399,7 +424,7 @@ export default function Home() {
           }).promise;
 
           if (outputFormat === "docx-visual") {
-            const wordChildren: Paragraph[] = [];
+            const visualSections: Array<ConstructorParameters<typeof Document>[0]["sections"][number]> = [];
 
             for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
               const page = await pdf.getPage(pageNumber);
@@ -424,16 +449,22 @@ export default function Home() {
               );
               const imageData = new Uint8Array(await imageBlob.arrayBuffer());
 
-              if (pageNumber > 1) {
-                wordChildren.push(new Paragraph({ children: [new PageBreak()] }));
-              }
+              const pageWidthPoints = baseViewport.width;
+              const pageHeightPoints = baseViewport.height;
+              const marginPoints = 9;
+              const displayWidth = Math.round((pageWidthPoints - marginPoints * 2) * 96 / 72);
+              const displayHeight = Math.round((pageHeightPoints - marginPoints * 2) * 96 / 72);
 
-              const aspectRatio = viewport.width / viewport.height;
-              const displayWidth = Math.min(720, Math.round(950 * aspectRatio));
-              const displayHeight = Math.round(displayWidth / aspectRatio);
-
-              wordChildren.push(
-                new Paragraph({
+              visualSections.push({
+                properties: {
+                  type: pageNumber === 1 ? undefined : SectionType.NEXT_PAGE,
+                  page: {
+                    size: { width: Math.round(pageWidthPoints * 20), height: Math.round(pageHeightPoints * 20) },
+                    margin: { top: marginPoints * 20, right: marginPoints * 20, bottom: marginPoints * 20, left: marginPoints * 20 },
+                  },
+                },
+                children: [new Paragraph({
+                  alignment: AlignmentType.CENTER,
                   spacing: { before: 0, after: 0 },
                   children: [
                     new ImageRun({
@@ -445,19 +476,12 @@ export default function Home() {
                       },
                     }),
                   ],
-                })
-              );
+                })],
+              });
             }
 
             const visualDocument = new Document({
-              sections: [{
-                properties: {
-                  page: {
-                    margin: { top: 360, right: 360, bottom: 360, left: 360 },
-                  },
-                },
-                children: wordChildren,
-              }],
+              sections: visualSections,
             });
             setDownload({
               name: `${baseName}-gorunum-korunmus.docx`,
@@ -801,6 +825,13 @@ export default function Home() {
               </a>
 
               <a
+                href="#pricing"
+                className="text-sm font-medium text-gray-600 transition hover:text-gray-950"
+              >
+                Plan
+              </a>
+
+              <a
                 href="/belge-ai"
                 className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-gray-950 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-violet-200/50"
               >
@@ -888,7 +919,10 @@ export default function Home() {
 
               <div className={`rounded-3xl border-2 border-dashed p-4 transition-all duration-300 ${privacyMode ? isDraggingFile ? "scale-[1.01] border-slate-400 bg-[#15191f]/95 shadow-xl shadow-black/30" : "border-slate-600 bg-[#12161c]/90 shadow-lg shadow-black/20 hover:border-slate-400" : isDraggingFile ? "scale-[1.01] border-gray-700 bg-white shadow-xl shadow-gray-200/70" : "border-gray-300 bg-white/90 shadow-sm hover:border-gray-500 hover:shadow-md"}`}>
 
-                <div className={`relative flex min-h-[320px] flex-col items-center justify-center overflow-hidden rounded-2xl px-6 py-12 transition-all duration-300 ${isDraggingFile ? "bg-gray-100" : "bg-gray-50 group-hover:bg-gray-100"}`}>
+                <div className={`relative flex min-h-[360px] flex-col items-center justify-center overflow-hidden rounded-2xl px-6 py-12 transition-all duration-300 ${privacyMode ? "bg-[#10141a]" : isDraggingFile ? "bg-slate-50" : "bg-[#f8fafc]"}`}>
+
+                  <span aria-hidden="true" className="pointer-events-none absolute inset-0 transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: privacyMode ? "radial-gradient(circle at 12% 16%, rgba(14,116,144,.20), transparent 31%), radial-gradient(circle at 88% 12%, rgba(124,58,237,.18), transparent 29%), radial-gradient(circle at 72% 94%, rgba(5,150,105,.16), transparent 31%)" : "radial-gradient(circle at 12% 16%, rgba(224,242,254,.92), transparent 31%), radial-gradient(circle at 88% 12%, rgba(237,233,254,.82), transparent 29%), radial-gradient(circle at 72% 94%, rgba(209,250,229,.65), transparent 31%)" }} />
+                  <span aria-hidden="true" className={`pointer-events-none absolute inset-0 ${privacyMode ? "bg-gradient-to-b from-transparent via-transparent to-black/10" : "bg-gradient-to-b from-white/5 via-transparent to-white/35"}`} />
 
                   <div className={`relative mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border shadow-sm backdrop-blur transition-all duration-300 ${privacyMode ? "border-white/10 bg-white/5" : "border-white/80 bg-white/90"} ${isDraggingFile ? "scale-110 shadow-lg" : "group-hover:-translate-y-0.5"}`}>
 
@@ -900,11 +934,11 @@ export default function Home() {
                   {selectedFile ? (
 
                     <>
-                      <p className="text-xl font-semibold text-gray-900">
+                      <p className={`relative text-xl font-semibold ${privacyMode ? "text-white" : "text-gray-900"}`}>
                         {selectedFile.name}
                       </p>
 
-                      <p className="mt-2 text-sm text-gray-500">
+                      <p className={`relative mt-2 text-sm ${privacyMode ? "text-gray-400" : "text-gray-500"}`}>
                         Dosya seçildi. Değiştirmek için tıklayın.
                       </p>
                     </>
@@ -912,11 +946,11 @@ export default function Home() {
                   ) : (
 
                     <>
-                      <p className="relative text-xl font-semibold text-gray-900">
+                      <p className={`relative text-xl font-semibold ${privacyMode ? "text-white" : "text-gray-900"}`}>
                         {isDraggingFile ? "Dosyayı buraya bırakın" : "Dosyalarınızı buraya sürükleyin"}
                       </p>
 
-                      <p className="relative mt-2 text-sm text-gray-500">
+                      <p className={`relative mt-2 text-sm ${privacyMode ? "text-gray-400" : "text-gray-500"}`}>
                         {isDraggingFile ? "Bıraktığınız anda dosyanız seçilecek" : "veya bilgisayarınızdan göz atmak için tıklayın"}
                       </p>
                     </>
@@ -946,7 +980,7 @@ export default function Home() {
               id="file-upload"
               type="file"
               ref={fileInputRef}
-              accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/heic,image/heif,image/x-icon,.ico,.heic,.heif,.svg,video/mp4,video/quicktime,video/webm,audio/mpeg,audio/wav,audio/ogg,audio/aac,audio/mp4,audio/opus,.opus,.m4a,.zip,.docx,.pdf,.ppt,.pptx,.html,text/html,.txt,.xlsx,.csv"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/heic,image/heif,image/x-icon,.ico,.heic,.heif,.svg,video/mp4,video/quicktime,video/webm,audio/mpeg,audio/wav,audio/ogg,audio/aac,audio/mp4,audio/opus,.opus,.m4a,.zip,.docx,.pdf,.ppt,.pptx,.html,.htm,text/html,.txt,.xlsx,.csv"
               className="hidden"
               onChange={handleFileChange}
             />
@@ -968,7 +1002,7 @@ export default function Home() {
                 <span>
                   <span className="block text-sm font-semibold">Gizli / güvenli mod</span>
                   <span className={privacyMode ? "mt-1 block text-xs leading-5 text-gray-300" : "mt-1 block text-xs leading-5 text-gray-500"}>
-                    Dosyalar bu cihazda işlenir. Word → PDF için uygulamayı Docker ile yerel olarak çalıştırmanız gerekir.
+                    Desteklenen görsel, ses ve video işlemleri bu cihazda yapılır. Office ve sunucu gerektiren dönüşümler için gizli modu kapatın.
                   </span>
                 </span>
               </label>
@@ -983,7 +1017,7 @@ export default function Home() {
                     onChange={(event) => setOutputFormat(event.target.value)}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-900 outline-none transition focus:border-gray-950"
                   >
-                    {isSelectedDocument ? selectedFileExtension === "html" ? (
+                    {isSelectedDocument ? ["html", "htm"].includes(selectedFileExtension) ? (
                       <option value="pdf">PDF</option>
                     ) : selectedFileExtension === "docx" ? (
                       <>
@@ -995,6 +1029,7 @@ export default function Home() {
                         <option value="docx-visual">DOCX (birebir görünüm — önerilen)</option>
                         <option value="docx">DOCX (düzenlenebilir — beta)</option>
                         <option value="txt">TXT</option>
+                        <option value="html">HTML</option>
                         <option value="png-zip">PNG (tüm sayfalar ZIP)</option>
                         <option value="jpg-zip">JPG (tüm sayfalar ZIP)</option>
                       </>
@@ -1409,9 +1444,66 @@ export default function Home() {
       </section>
 
 
+      {/* PLAN AND ROADMAP */}
+
+      <section id="pricing" className={`scroll-mt-24 border-t px-6 py-20 ${privacyMode ? "border-white/10 bg-[#0b0d10]" : "border-gray-200 bg-white"}`}>
+        <div className="mx-auto max-w-6xl">
+          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.5fr]">
+            <article className={`rounded-3xl border p-8 ${privacyMode ? "border-white/10 bg-white/[0.05]" : "border-gray-200 bg-gray-50"}`}>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${privacyMode ? "text-violet-300" : "text-violet-600"}`}>Beta planı</p>
+                  <h2 className={`mt-2 text-3xl font-bold tracking-tight ${privacyMode ? "text-white" : "text-gray-950"}`}>Ücretsiz</h2>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${privacyMode ? "bg-white/10 text-gray-200" : "bg-white text-gray-600 ring-1 ring-gray-200"}`}>Kart gerekmez</span>
+              </div>
+              <ul className={`mt-8 space-y-3 text-sm leading-6 ${privacyMode ? "text-gray-300" : "text-gray-600"}`}>
+                <li>Genel dönüşümlerde dosya başına en fazla 100 MB</li>
+                <li>Belge AI işlemlerinde dosya başına en fazla 25 MB</li>
+                <li>Sabit günlük kota yok; adil kullanım ve altyapı sınırları geçerli</li>
+                <li>Şu anda reklam veya ücretli plan bulunmuyor</li>
+              </ul>
+              <p className={`mt-7 text-xs leading-5 ${privacyMode ? "text-gray-500" : "text-gray-400"}`}>
+                Beta sürecinde limitler ve plan yapısı değişebilir. Değişiklikler kullanıma sunulmadan önce açıkça duyurulur.
+              </p>
+            </article>
+
+            <div>
+              <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${privacyMode ? "text-gray-500" : "text-gray-400"}`}>Yol haritası</p>
+              <h2 className={`mt-2 text-2xl font-bold tracking-tight ${privacyMode ? "text-white" : "text-gray-950"}`}>Daha güçlü iş akışları geliyor</h2>
+              <p className={`mt-3 max-w-2xl text-sm leading-6 ${privacyMode ? "text-gray-400" : "text-gray-500"}`}>
+                Bugün arşivlerde ZIP destekleniyor. Aşağıdaki özellikler henüz kullanıma açık değil; geliştirme planımızda yer alıyor.
+              </p>
+              <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                {upcomingFeatures.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <article key={item.title} className={`rounded-2xl border p-5 ${privacyMode ? "border-white/10 bg-white/[0.035]" : "border-gray-200 bg-white"}`}>
+                      <div className="flex items-start gap-4">
+                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${privacyMode ? "bg-white/10 text-violet-200" : "bg-violet-50 text-violet-700"}`}>
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className={`text-sm font-semibold ${privacyMode ? "text-white" : "text-gray-900"}`}>{item.title}</h3>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${privacyMode ? "bg-violet-400/15 text-violet-200" : "bg-violet-50 text-violet-700"}`}>Yakında</span>
+                          </div>
+                          <p className={`mt-1.5 text-xs leading-5 ${privacyMode ? "text-gray-400" : "text-gray-500"}`}>{item.description}</p>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
       {/* CTA */}
 
-      <section id="pricing" className={`px-6 pb-24 ${privacyMode ? "bg-[#0b0d10]" : ""}`}>
+      <section className={`px-6 pb-24 ${privacyMode ? "bg-[#0b0d10]" : ""}`}>
 
         <div className={`mx-auto max-w-6xl rounded-3xl border px-8 py-16 text-center md:px-16 ${privacyMode ? "border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.025]" : "border-transparent bg-gray-100"}`}>
 
@@ -1466,6 +1558,13 @@ export default function Home() {
           <div className="flex items-center gap-6 text-sm text-gray-400">
 
             <a
+              href="#pricing"
+              className="transition hover:text-gray-900"
+            >
+              Plan
+            </a>
+
+            <a
               href="/gizlilik"
               className="transition hover:text-gray-900"
             >
@@ -1508,6 +1607,7 @@ export default function Home() {
           </div>
         </div>
       )}
+      <WelcomeGuide />
 
     </main>
   );

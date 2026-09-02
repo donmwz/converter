@@ -21,7 +21,8 @@ export async function GET() {
   });
   const zip = new JSZip();
   zip.file("hesap.json", JSON.stringify({ ...user, exportedAt: new Date().toISOString() }, null, 2));
-  zip.file("donusum-gecmisi.json", JSON.stringify(history.map(({ resultKey: _resultKey, sourceKey: _sourceKey, ...item }) => item), null, 2));
+  const safeHistory = history.map((item) => Object.fromEntries(Object.entries(item).filter(([key]) => key !== "resultKey" && key !== "sourceKey")));
+  zip.file("donusum-gecmisi.json", JSON.stringify(safeHistory, null, 2));
   const usedNames = new Set<string>();
   for (const item of history) {
     if (!item.resultKey || !item.resultName) continue;

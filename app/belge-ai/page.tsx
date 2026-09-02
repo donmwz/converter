@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Document, Packer, Paragraph, TextRun } from "docx";
+import { AlignmentType, BorderStyle, Document, Footer, Header, HeadingLevel, PageNumber, Packer, Paragraph, ShadingType, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import { BarChart3, Bot, Check, ChevronDown, Download, FileText, Languages, LoaderCircle, LockKeyhole, Send, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import UserNav from "@/app/components/user-nav";
@@ -12,14 +12,47 @@ type Result = { kind: "summary" | "translation" | "analysis"; title: string; con
 type Extracted = { fileName: string; extension: string; kind: "document" | "table"; text: string; metadata: Record<string, number | boolean | string> };
 const languages = ["İngilizce", "Türkçe", "Almanca", "Fransızca", "İspanyolca", "İtalyanca", "Arapça", "Rusça"];
 
-function resultDocument(title: string, content: string) {
-  const children = [new Paragraph({ children: [new TextRun({ text: title, bold: true, size: 32 })], spacing: { after: 320 } })];
-  for (const line of content.split("\n").map((item) => item.trim()).filter(Boolean)) {
+function resultDocument(title: string, content: string, sourceName: string) {
+  const lines = content.split("\n");
+  const children: (Paragraph | Table)[] = [
+    new Paragraph({ children: [new TextRun({ text: "Convertly  /  Belge AI", color: "8B5CF6", size: 17, characterSpacing: 35 })], spacing: { after: 220 } }),
+    new Paragraph({ children: [new TextRun({ text: title, bold: true, color: "111827", size: 36 })], spacing: { after: 130 } }),
+    new Paragraph({ children: [new TextRun({ text: sourceName, color: "6B7280", size: 18 }), new TextRun({ text: `   ·   ${new Intl.DateTimeFormat("tr-TR", { dateStyle: "long" }).format(new Date())}`, color: "9CA3AF", size: 18 })], spacing: { after: 300 }, border: { bottom: { style: BorderStyle.SINGLE, size: 7, color: "A855F7", space: 14 } } }),
+  ];
+  for (let index = 0; index < lines.length;) {
+    const line = lines[index].trim();
+    if (!line) { index += 1; continue; }
+    if (line.startsWith("|") && /^\|?\s*:?-+/.test(lines[index + 1]?.trim() ?? "")) {
+      const rows: string[][] = [];
+      rows.push(line.split("|").slice(1, -1).map((cell) => cell.trim()));
+      index += 2;
+      while (index < lines.length && lines[index].trim().startsWith("|")) { rows.push(lines[index].trim().split("|").slice(1, -1).map((cell) => cell.trim())); index += 1; }
+      children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: rows.map((cells, rowIndex) => new TableRow({ tableHeader: rowIndex === 0, children: cells.map((cell) => new TableCell({ shading: rowIndex === 0 ? { fill: "F5F3FF", type: ShadingType.CLEAR } : undefined, margins: { top: 95, bottom: 95, left: 115, right: 115 }, children: [new Paragraph({ children: [new TextRun({ text: cell.replace(/\*\*/g, ""), color: rowIndex === 0 ? "7C3AED" : "4B5563", size: 18 })] })] })) })) }));
+      children.push(new Paragraph({ spacing: { after: 180 } }));
+      continue;
+    }
+    const headingMatch = line.match(/^(#{1,3})\s+(.+)/);
     const bullet = /^[-•*]\s+/.test(line);
-    const heading = /^#{1,3}\s/.test(line);
-    children.push(new Paragraph({ text: line.replace(/^#{1,3}\s*/, "").replace(/^[-•*]\s+/, ""), heading: heading ? "Heading2" : undefined, bullet: bullet ? { level: 0 } : undefined, spacing: { before: heading ? 180 : 0, after: 120 } }));
+    children.push(new Paragraph({
+      heading: headingMatch ? HeadingLevel.HEADING_2 : undefined,
+      indent: bullet ? { left: 240, hanging: 140 } : undefined,
+      children: bullet
+        ? [new TextRun({ text: "•  ", color: "A855F7", size: 16 }), new TextRun({ text: line.replace(/^[-•*]\s+/, "").replace(/\*\*/g, ""), color: "4B5563", size: 20 })]
+        : [new TextRun({ text: (headingMatch?.[2] ?? line).replace(/\*\*/g, ""), color: headingMatch ? "7C3AED" : "4B5563", size: headingMatch ? 25 : 20 })],
+      spacing: { before: headingMatch ? 260 : 0, after: headingMatch ? 110 : 125, line: 310 },
+      keepNext: Boolean(headingMatch),
+    }));
+    index += 1;
   }
-  return new Document({ sections: [{ properties: { page: { margin: { top: 720, right: 720, bottom: 720, left: 720 } } }, children }] });
+  return new Document({
+    styles: { default: { document: { run: { font: "Aptos", size: 20, color: "4B5563" }, paragraph: { spacing: { line: 300 } } } } },
+    sections: [{
+      properties: { page: { margin: { top: 760, right: 760, bottom: 760, left: 760 } } },
+      headers: { default: new Header({ children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "BELGE ÖZETİ", color: "D1D5DB", size: 14, characterSpacing: 45 })] })] }) },
+      footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "Convertly   ·   ", color: "A855F7", size: 15 }), new TextRun({ children: [PageNumber.CURRENT], color: "9CA3AF", size: 15 })] })] }) },
+      children,
+    }],
+  });
 }
 
 function ResultView({ result, file, metadata }: { result: Result; file: File; metadata: Extracted["metadata"] }) {
@@ -39,7 +72,7 @@ export default function DocumentAiPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setConsented(localStorage.getItem("convertly_ai_consent") === "accepted");
+    const consentTimer = window.setTimeout(() => setConsented(localStorage.getItem("convertly_ai_consent") === "accepted"), 0);
     const checkSession = async () => {
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
@@ -55,7 +88,7 @@ export default function DocumentAiPage() {
       if (!cancelled) setError("Oturum doğrulanamadı. Bağlantınızı kontrol edip tekrar deneyin.");
     };
     void checkSession();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; window.clearTimeout(consentTimer); };
   }, []);
   const requireAuth = () => { if (authenticated === true) return true; if (authenticated === false) setShowLogin(true); else setError("Oturumunuz doğrulanıyor, lütfen kısa bir süre sonra tekrar deneyin."); return false; };
   const loadSuggestions = async (text: string) => { setBusy("suggestions"); setError(""); try { const response = await fetch("/api/ai/document", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "suggestions", text }) }); const body = await response.json().catch(() => null); if (!response.ok) throw new Error(body?.error ?? "AI önerileri hazırlanamadı."); setSuggestions(body?.suggestions ?? []); } catch (caught) { setError(caught instanceof Error ? caught.message : "AI önerileri hazırlanamadı."); } finally { setBusy(null); } };
@@ -69,7 +102,7 @@ export default function DocumentAiPage() {
   const ask = async (value = question) => { if (!value.trim() || !extracted || !requireAuth() || !ensureConsent()) return; const asked = value.trim(); const current = [...messages, { role: "user" as const, content: asked }]; setMessages(current); setQuestion(""); setBusy("question"); setError(""); try { const response = await fetch("/api/ai/document", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ask", text: extracted.text, question: asked, history: messages }) }); const body = await response.json(); if (!response.ok) throw new Error(body.error ?? "Soru yanıtlanamadı."); setMessages([...current, { role: "assistant", content: body.result }]); } catch (caught) { setError(caught instanceof Error ? caught.message : "Soru yanıtlanamadı."); } finally { setBusy(null); } };
 
   const saveBlob = async (blob: Blob, name: string) => { if (!file || !result) return; const data = new FormData(); data.append("file", new File([blob], name, { type: blob.type || "application/octet-stream" })); data.append("sourceName", file.name); data.append("sourceFormat", file.name.split(".").pop() ?? ""); data.append("outputFormat", name.split(".").pop() ?? ""); data.append("action", result.kind); const stored = await fetch("/api/ai/artifacts", { method: "POST", body: data }); if (!stored.ok) { const body = await stored.json().catch(() => null); throw new Error(body?.error ?? "AI çıktısı geçmişe kaydedilemedi."); } const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = name; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
-  const download = async (format: "source" | "pdf" | "docx" | "txt") => { if (!result || !file) return; setDownloadOpen(false); setBusy("download"); setError(""); const base = file.name.replace(/\.[^.]+$/, ""); const suffix = result.kind === "summary" ? "ozet" : result.kind === "analysis" ? "analiz" : `${targetLanguage}-ceviri`; try { if (format === "source" && result.kind === "translation" && !file.name.toLowerCase().endsWith(".pdf")) { const data = new FormData(); data.append("file", file); data.append("sourceLanguage", sourceLanguage); data.append("targetLanguage", targetLanguage); const response = await fetch("/api/ai/translate-file", { method: "POST", body: data }); if (!response.ok) { const body = await response.json(); throw new Error(body.error ?? "Yapısı korunan dosya oluşturulamadı."); } await saveBlob(await response.blob(), `${base}-${suffix}.${file.name.split(".").pop()}`); return; } if (format === "txt") { await saveBlob(new Blob([result.content], { type: "text/plain;charset=utf-8" }), `${base}-${suffix}.txt`); return; } const docx = await Packer.toBlob(resultDocument(result.title, result.content)); if (format === "docx") { await saveBlob(docx, `${base}-${suffix}.docx`); return; } const data = new FormData(); data.append("file", new File([docx], `${base}-${suffix}.docx`, { type: docx.type })); data.append("outputFormat", "pdf"); const response = await fetch("/api/convert/office", { method: "POST", body: data }); if (!response.ok) throw new Error("PDF oluşturulamadı. LibreOffice bulunan Docker ortamını kullanın."); await saveBlob(await response.blob(), `${base}-${suffix}.pdf`); } catch (caught) { setError(caught instanceof Error ? caught.message : "Dosya indirilemedi."); } finally { setBusy(null); } };
+  const download = async (format: "source" | "pdf" | "docx" | "txt") => { if (!result || !file) return; setDownloadOpen(false); setBusy("download"); setError(""); const base = file.name.replace(/\.[^.]+$/, ""); const suffix = result.kind === "summary" ? "ozet" : result.kind === "analysis" ? "analiz" : `${targetLanguage}-ceviri`; try { if (format === "source" && result.kind === "translation" && !file.name.toLowerCase().endsWith(".pdf")) { const data = new FormData(); data.append("file", file); data.append("sourceLanguage", sourceLanguage); data.append("targetLanguage", targetLanguage); const response = await fetch("/api/ai/translate-file", { method: "POST", body: data }); if (!response.ok) { const body = await response.json(); throw new Error(body.error ?? "Yapısı korunan dosya oluşturulamadı."); } await saveBlob(await response.blob(), `${base}-${suffix}.${file.name.split(".").pop()}`); return; } if (format === "txt") { await saveBlob(new Blob([result.content], { type: "text/plain;charset=utf-8" }), `${base}-${suffix}.txt`); return; } const docx = await Packer.toBlob(resultDocument(result.title, result.content, file.name)); if (format === "docx") { await saveBlob(docx, `${base}-${suffix}.docx`); return; } const data = new FormData(); data.append("file", new File([docx], `${base}-${suffix}.docx`, { type: docx.type })); data.append("outputFormat", "pdf"); const response = await fetch("/api/convert/office", { method: "POST", body: data }); if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.error ?? "PDF oluşturulamadı."); } await saveBlob(await response.blob(), `${base}-${suffix}.pdf`); } catch (caught) { setError(caught instanceof Error ? caught.message : "Dosya indirilemedi."); } finally { setBusy(null); } };
   const reset = () => { setFile(null); setExtracted(null); setResult(null); setMessages([]); setSuggestions([]); setError(""); if (inputRef.current) inputRef.current.value = ""; };
 
   return <main className="min-h-screen bg-[#f5f7fa] text-gray-900">

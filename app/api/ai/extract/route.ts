@@ -22,6 +22,7 @@ const allowed = {
   xls: ["application/vnd.ms-excel", "application/octet-stream"],
   csv: ["text/csv", "application/vnd.ms-excel", "text/plain", "application/octet-stream"],
   html: ["text/html", "application/xhtml+xml", "text/plain", "application/octet-stream"],
+  htm: ["text/html", "application/xhtml+xml", "text/plain", "application/octet-stream"],
 } as const;
 
 async function userId() {
@@ -37,9 +38,9 @@ function validSignature(buffer: Buffer, extension: keyof typeof allowed) {
   if (extension === "pdf") return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
   if (extension === "docx" || extension === "xlsx") return buffer[0] === 0x50 && buffer[1] === 0x4b;
   if (extension === "xls") return buffer.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]));
-  if (extension === "html") {
+  if (extension === "html" || extension === "htm") {
     const sample = buffer.subarray(0, Math.min(buffer.length, 8192)).toString("utf8").replace(/^\uFEFF/, "");
-    return !buffer.subarray(0, Math.min(buffer.length, 4096)).includes(0) && /<(?:!doctype\s+html|html|head|body|main|article|section|div|p|h[1-6])\b/i.test(sample);
+    return !buffer.subarray(0, Math.min(buffer.length, 4096)).includes(0) && /<(?:!doctype\s+html|html|head|body|meta|title|main|article|section|div|p|h[1-6]|table|ul|ol|li|a|span|form)\b/i.test(sample);
   }
   return !buffer.subarray(0, Math.min(buffer.length, 4096)).includes(0);
 }
@@ -208,7 +209,7 @@ export async function POST(request: Request) {
     if (extension === "pdf") extracted = await extractPdf(buffer);
     else if (extension === "docx") extracted = { text: await extractDocx(buffer), metadata: {} };
     else if (extension === "txt") extracted = { text: buffer.toString("utf8"), metadata: { lines: buffer.toString("utf8").split(/\r?\n/).length } };
-    else if (extension === "html") extracted = extractHtml(buffer);
+    else if (extension === "html" || extension === "htm") extracted = extractHtml(buffer);
     else extracted = extractWorkbook(buffer, extension);
 
     const text = extracted.text.replace(/\u0000/g, "").trim();

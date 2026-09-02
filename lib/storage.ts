@@ -43,19 +43,19 @@ function decrypt(body: Uint8Array, userId: string) {
 
 const bucket = process.env.S3_BUCKET ?? "convertly-files";
 const endpoint = process.env.S3_ENDPOINT;
+const accessKeyId = process.env.S3_ACCESS_KEY?.trim() || process.env.AWS_ACCESS_KEY_ID?.trim();
+const secretAccessKey = process.env.S3_SECRET_KEY?.trim() || process.env.AWS_SECRET_ACCESS_KEY?.trim();
 const client = new S3Client({
   region: process.env.S3_REGION ?? "us-east-1",
   endpoint: endpoint || undefined,
   forcePathStyle: Boolean(endpoint && !endpoint.includes("amazonaws.com")),
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY ?? "convertly",
-    secretAccessKey: process.env.S3_SECRET_KEY ?? "convertly-local-secret",
-  },
+  ...(accessKeyId && secretAccessKey ? { credentials: { accessKeyId, secretAccessKey } } : {}),
 });
 
 let bucketReady: Promise<void> | null = null;
 
 async function ensureBucket() {
+  if (!endpoint || endpoint.includes("amazonaws.com")) return;
   if (!bucketReady) {
     bucketReady = (async () => {
       try {
@@ -69,6 +69,8 @@ async function ensureBucket() {
 }
 
 export async function storeResult(key: string, body: Uint8Array, contentType: string, userId: string) {
+  if (!process.env.FILE_ENCRYPTION_KEY?.trim()) throw new Error("FILE_ENCRYPTION_KEY eksik.");
+  if (!bucket.trim()) throw new Error("S3_BUCKET eksik.");
   await ensureBucket();
   await client.send(new PutObjectCommand({
     Bucket: bucket,

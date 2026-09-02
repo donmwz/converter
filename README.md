@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Convertly
 
-## Getting Started
+Convertly is a modern file conversion and document AI application built with Next.js. It converts documents, images, audio, video, archives, and HTML files; signed-in users can securely store and download their results again.
 
-First, run the development server:
+## Features
+
+- Document, image, audio, video, ZIP, and HTML conversion
+- PDF to DOCX, HTML, image, and text workflows
+- DOCX, PowerPoint, Excel, CSV, and HTML to PDF through a conversion worker
+- Document AI summaries, translations, table analysis, and document-scoped Q&A
+- Six-digit email verification with Brevo
+- User accounts, conversion history, data export, and account deletion
+- AES-256-GCM encrypted result files in private S3 storage
+- Optional browser-local privacy mode for supported conversions
+
+## Architecture
+
+- **Web application:** Next.js 16 and React 19
+- **Database:** PostgreSQL/Supabase through Drizzle ORM
+- **Object storage:** Private AWS S3 or an S3-compatible service
+- **Document processing:** Railway-hosted LibreOffice, Poppler, OCR, and PDF analysis worker
+- **AI:** OpenRouter; source files are parsed by Convertly and only extracted content is sent to the configured model
+- **Transactional email:** Brevo API
+
+## Local setup
+
+Requirements: Node.js 20 or newer, npm, PostgreSQL, and optionally MinIO for local object storage.
+
+```powershell
+npm install
+Copy-Item .env.example .env.local
+npm run db:migrate
+npm run dev
+```
+
+The application runs at [http://localhost:3001](http://localhost:3001).
+
+## Environment variables
+
+Use [.env.example](./.env.example) as the safe template. Never commit `.env.local` or real credentials.
+
+- `DATABASE_URL`: pooled PostgreSQL connection string
+- `S3_ENDPOINT`: optional custom endpoint; leave empty for AWS S3
+- `S3_REGION`, `S3_BUCKET`: private bucket location
+- `S3_ACCESS_KEY`, `S3_SECRET_KEY`: least-privilege S3 credentials
+- `FILE_ENCRYPTION_KEY`: 32-byte key encoded as 64 hexadecimal characters or Base64
+- `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`: Document AI settings
+- `BREVO_API_KEY`: Brevo API key, normally beginning with `xkeysib-`
+- `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`: verified transactional sender
+- `NEXT_PUBLIC_APP_URL`: public application URL
+- `CONVERSION_SERVICE_URL`, `CONVERSION_SERVICE_TOKEN`: private conversion-worker endpoint and shared token
+
+Generate a file-encryption key:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+## Deployment
+
+### Vercel
+
+Deploy the Next.js application and add all required production environment variables as secrets. `CONVERSION_SERVICE_URL` must point to the Railway worker because Vercel does not provide LibreOffice or long-running document-processing binaries.
+
+### Railway conversion worker
+
+Deploy the same repository with its Dockerfile. Configure `CONVERSION_SERVICE_TOKEN` with the same secret used by Vercel. The worker contains the native tools required for Office, PDF, HTML, and OCR operations.
+
+### Supabase
+
+Use the pooled PostgreSQL connection string for serverless deployments and apply migrations before accepting registrations or conversion-history writes:
+
+```bash
+npm run db:migrate
+```
+
+### AWS S3
+
+Use a private bucket with public access blocked. The IAM user should only have the object permissions required for that bucket. Convertly encrypts result bytes before upload and validates the authenticated owner before download.
+
+### Brevo
+
+Create an API key from **SMTP & API → API Keys**, verify the sender address, and set `BREVO_API_KEY` and `BREVO_SENDER_EMAIL`. SMTP keys beginning with `xsmtpsib-` are not API keys.
+
+## Security notes
+
+- Passwords are hashed with bcrypt and never stored as plain text.
+- Session tokens are hashed in the database and delivered through HTTP-only cookies.
+- Stored result files are encrypted separately for each user.
+- Temporary source files are removed after server-side conversion.
+- Environment files, Vercel metadata, generated runtimes, and build output are excluded from Git.
+- Rotate any credential pasted into chat, logs, issues, or commit history.
+
+## Commands
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm run lint
+npm run db:generate
+npm run db:migrate
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## License
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+No open-source license has been selected. All rights are reserved unless a license file is added.

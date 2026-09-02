@@ -4,6 +4,7 @@ import Link from "next/link";
 import { DatabaseBackup, Download, FileClock, LoaderCircle, LogOut, Save, Trash2, UserRound, UserX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import ScrollAwareHeader from "@/app/components/scroll-aware-header";
 
 type User = {
   email: string;
@@ -26,8 +27,6 @@ type Conversion = {
 };
 
 const accountLabels: Record<string, string> = { individual: "Bireysel", corporate: "Kurumsal", student: "Öğrenci" };
-const useCaseLabels: Record<string, string> = { personal: "Kişisel kullanım", work: "İş", education: "Eğitim", other: "Diğer" };
-
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [history, setHistory] = useState<Conversion[]>([]);
@@ -85,7 +84,7 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-[#fafafa] text-gray-900">
-      <header className="border-b border-gray-200 bg-white">
+      <ScrollAwareHeader className="border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
           <Link href="/" className="text-xl font-bold tracking-tight text-gray-950">Convertly</Link>
           <div className="flex items-center gap-3">
@@ -93,7 +92,7 @@ export default function ProfilePage() {
             <button onClick={logout} className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-white"><LogOut className="h-4 w-4" /> Çıkış</button>
           </div>
         </div>
-      </header>
+      </ScrollAwareHeader>
 
       <div className="mx-auto max-w-6xl px-6 py-12">
         <div className="mb-10 flex items-center gap-4">

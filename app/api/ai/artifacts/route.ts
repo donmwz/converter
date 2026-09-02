@@ -20,7 +20,12 @@ export async function POST(request: Request) {
   const id = crypto.randomUUID();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const key = `users/${userId}/ai/${id}/${safeName}`;
-  await storeResult(key, new Uint8Array(await file.arrayBuffer()), file.type || "application/octet-stream", userId);
+  try {
+    await storeResult(key, new Uint8Array(await file.arrayBuffer()), file.type || "application/octet-stream", userId);
+  } catch (error) {
+    console.error("AI çıktısı depolanamadı:", error);
+    return NextResponse.json({ error: "AI çıktısı güvenli depolamaya kaydedilemedi. Depolama yapılandırmasını kontrol edin." }, { status: 503 });
+  }
   await db.insert(conversions).values({
     id,
     userId,

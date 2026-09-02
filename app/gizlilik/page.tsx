@@ -8,7 +8,7 @@ const sections = [
     icon: Bot,
     title: "AI nasıl çalışır?",
     content: [
-      "AI Belge Asistanı PDF, DOCX, TXT, XLSX, XLS ve CSV dosyalarını önce Convertly backend'inde doğrular ve ayrıştırır. Dosyanın binary hali uzak sunucuya gönderilmez; özetleme, çeviri, analiz veya soru-cevap için gerekli metin ya da yapılandırılmış tablo bölümleri gönderilir.",
+      "AI Belge Asistanı PDF, DOCX, HTML, TXT, XLSX, XLS ve CSV dosyalarını önce Convertly sunucusunda geçici olarak doğrular ve ayrıştırır. Kaynak dosya, metni çıkarabilmek için sunucuya yüklenir; dosyanın kendisi AI model sağlayıcısına gönderilmez. OpenRouter üzerinden yalnızca özetleme, çeviri, analiz veya soru-cevap için gerekli çıkarılmış metin ya da yapılandırılmış tablo bölümleri iletilir.",
       "AI istekleri OpenRouter API üzerinden .env yapılandırmasında seçilen modele yönlendirilir. Kullanılan model OPENROUTER_MODEL ayarına göre değişebilir. İçeriğin gönderilme amacı yalnızca kullanıcının başlattığı AI işlemini gerçekleştirmektir.",
       "Uzun belgeler token sınırını yönetmek için parçalara ayrılır. Soru-cevap sırasında tüm belge yerine soruyla en alakalı bölümler seçilir. AI yanıtları hata içerebilir; kritik bilgiler kaynak belgeyle doğrulanmalıdır.",
       "AI sohbetleri şu anda veritabanına kaydedilmez; açık sayfanın tarayıcı belleğinde tutulur ve sayfa yenilendiğinde kaybolur. İlk AI kullanımında gösterilen şeffaflık onayı yalnızca tarayıcınızın yerel depolamasında saklanır.",
@@ -19,7 +19,8 @@ const sections = [
     icon: Eye,
     title: "Gizli mod ile yerel işleme",
     content: [
-      "Gizli mod etkinleştirildiğinde dosyalarınız tarayıcınızda ve cihazınızda işlenir. Görsel, ses ve video dönüşümleri tamamen istemci tarafında gerçekleşir; dosya içeriği sunucularımıza yüklenmez.",
+      "Gizli mod yalnızca tarayıcıda çalışabilen destekli dönüşümleri kapsar. Görsel, ses ve video işlemlerinde dosya cihazınızda işlenir ve sunucularımıza yüklenmez.",
+      "Word, PowerPoint ve benzeri sunucu gerektiren dönüşümler gizli modda kullanılamaz; bunları kullanmak için standart moda geçmeniz gerekir. Belge AI da dosyayı ayrıştırmak için Convertly sunucusunu ve çıkarılmış içerik için harici AI sağlayıcısını kullandığından yerel işleme kapsamında değildir.",
       "Gizli modda dönüşüm geçmişi kaydı tutulmaz. Oturum açmış olsanız bile dosya adı, format veya sonuç bilgisi veritabanına yazılmaz.",
     ],
   },
@@ -67,7 +68,7 @@ const sections = [
     title: "Tasarım gereği gizlilik",
     content: [
       "Convertly, dosyalarınızı pazarlama veya analiz amacıyla toplamaz. Dönüştürme işlemi sizin kontrolünüzdedir.",
-      "Gizli mod ile hassas belgelerinizi tamamen kendi cihazınızda işleyebilirsiniz. Word ve PowerPoint dönüşümleri için yerel Docker kurulumu önerilir.",
+      "Gizli mod ile desteklenen görsel, ses ve video işlemlerini kendi cihazınızda gerçekleştirebilirsiniz. Sunucu gerektiren Office dönüşümleri gizli modda sunulmaz; kullanıcıdan Docker veya başka bir teknik kurulum beklenmez.",
       "Sorularınız veya veri silme talepleriniz için iletişim sayfamızdan bize ulaşabilirsiniz.",
     ],
   },
@@ -75,7 +76,7 @@ const sections = [
     icon: CircleDollarSign,
     title: "Ücretsiz ve reklamsız",
     content: [
-      "Convertly şu anda kullanıcılar için ücretsizdir ve reklam göstermez. Kullanıcı deneyimi reklam izleme sistemleri üzerine kurulmamıştır. OpenRouter kullanım limitleri veya maliyetleri uygulamanın yapılandırmasına bağlı olabilir.",
+      "Convertly şu anda beta sürecinde ücretsizdir ve reklam göstermez. Genel dönüşümlerde dosya başına 100 MB, Belge AI işlemlerinde 25 MB sınırı vardır. Sabit bir günlük kota uygulanmaz; kötüye kullanımı önleme, altyapı kapasitesi ve OpenRouter sağlayıcı limitleri nedeniyle geçici sınırlar oluşabilir. Ücretli veya kurumsal bir plan henüz satışta değildir.",
     ],
   },
 ];

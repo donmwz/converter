@@ -37,6 +37,7 @@ export const conversionTools: ConversionTool[] = [
   { from: "PDF", to: "DOCX", title: "PDF Word Çevirme", description: "Tabloları, renkleri ve sayfa görünümünü koruyan DOCX oluşturun.", category: "Belgeler", theme: "rose" },
   { from: "DOCX", to: "PDF", title: "Word PDF Çevirme", description: "Word belgelerini paylaşımı kolay PDF dosyalarına çevirin.", category: "Belgeler", theme: "blue" },
   { from: "HTML", to: "PDF", title: "HTML PDF Çevirme", description: "HTML sayfalarını PDF belgesi olarak dışa aktarın.", category: "Belgeler", theme: "slate" },
+  { from: "PDF", to: "HTML", title: "PDF HTML Çevirme", description: "PDF belgelerini tarayıcıda açılabilen tek bir HTML dosyasına dönüştürün.", category: "Belgeler", theme: "cyan" },
   { from: "PPTX", to: "PDF", title: "PowerPoint'ten PDF'e", description: "Sunumları tek tıkla PDF formatına dönüştürün.", category: "Belgeler", theme: "orange" },
   { from: "XLSX", to: "CSV", title: "Excel'den CSV'ye", description: "Excel tablolarını CSV formatına aktarın.", category: "Belgeler", theme: "emerald" },
   { from: "CSV", to: "XLSX", title: "CSV'den Excel'e", description: "CSV dosyalarını düzenlenebilir XLSX tablolarına çevirin.", category: "Belgeler", theme: "teal" },
@@ -76,5 +77,5 @@ export const categoryDescriptions: Record<ConversionTool["category"], string> = 
   Görseller: "JPG, PNG, WEBP, HEIC ve daha fazlasını dönüştürün veya düzenleyin.",
   Video: "MP4, MOV ve WebM formatları arasında dönüşüm yapın veya ses ayıklayın.",
   Ses: "MP3, WAV, OGG ve diğer ses formatları arasında dönüştürün.",
-  Arşiv: "ZIP arşivlerini açın ve içindeki dosyaları dönüştürün.",
+  Arşiv: "Şu anda ZIP arşivlerini açın; RAR ve 7z desteği geliştirme planımızda.",
 };

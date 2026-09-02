@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, MailCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
@@ -10,6 +10,8 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [loading, setLoading] = useState(false);
   const [accountType, setAccountType] = useState("individual");
   const [showPassword, setShowPassword] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const router = useRouter();
   const isRegister = mode === "register";
   const input =
@@ -18,6 +20,18 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+
+    if (isRegister && verificationEmail) {
+      setLoading(true);
+      try {
+        const response = await fetch("/api/auth/register/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: verificationEmail, code: verificationCode }) });
+        const body = await response.json().catch(() => null);
+        if (!response.ok) { setError(body?.error ?? "Kod doğrulanamadı."); return; }
+        router.push("/");
+        router.refresh();
+      } catch { setError("Doğrulama servisine bağlanılamadı."); } finally { setLoading(false); }
+      return;
+    }
 
     const formData = new FormData(event.currentTarget);
     const password = String(formData.get("password") ?? "");
@@ -45,6 +59,12 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
       const body = await response.json().catch(() => null);
       if (!response.ok) {
         setError(body?.error ?? "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+        return;
+      }
+
+      if (isRegister && body?.verificationRequired) {
+        setVerificationEmail(body.email);
+        setVerificationCode("");
         return;
       }
 
@@ -97,6 +117,19 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
       </aside>
 
       <form onSubmit={submit} className="space-y-4 p-8 md:p-12">
+        {isRegister && verificationEmail ? (
+          <>
+            <button type="button" onClick={() => { setVerificationEmail(""); setVerificationCode(""); setError(""); }} className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-950"><ArrowLeft className="h-4 w-4" /> Bilgileri düzenle</button>
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-50 text-violet-700 ring-1 ring-violet-100"><MailCheck className="h-6 w-6" /></span>
+            <p className="text-sm font-semibold uppercase tracking-wider text-gray-400">Son adım</p>
+            <h2 className="text-3xl font-bold">E-postanızı doğrulayın</h2>
+            <p className="text-sm leading-6 text-gray-500"><strong className="font-semibold text-gray-700">{verificationEmail}</strong> adresine gönderdiğimiz 6 haneli kodu girin. Kod 10 dakika geçerlidir.</p>
+            <input required autoFocus inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" className={`${input} text-center text-2xl font-semibold tracking-[.35em]`} />
+            {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            <button disabled={loading || verificationCode.length !== 6} className="w-full rounded-xl bg-gray-950 p-3.5 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400">{loading ? "Doğrulanıyor..." : "Kodu doğrula ve hesabı oluştur"}</button>
+          </>
+        ) : (
+        <>
         <p className="text-sm font-semibold uppercase tracking-wider text-gray-400">
           {isRegister ? "Ücretsiz hesap" : "Hesabınız"}
         </p>
@@ -154,6 +187,8 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
             {isRegister ? "Giriş yap" : "Kayıt ol"}
           </Link>
         </p>
+        </>
+        )}
       </form>
     </div>
   );
