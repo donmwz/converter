@@ -18,7 +18,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Oturum gerekli." }, { status: 401 });
-  const { fullName, organizationName, useCase } = await request.json();
+  const { fullName, organizationName, useCase, emailTwoFactorEnabled } = await request.json();
   if (typeof fullName !== "string" || !fullName.trim()) {
     return NextResponse.json({ error: "Ad soyad zorunludur." }, { status: 400 });
   }
@@ -26,6 +26,12 @@ export async function PATCH(request: Request) {
     fullName: fullName.trim(),
     organizationName: typeof organizationName === "string" && organizationName.trim() ? organizationName.trim() : null,
     useCase: typeof useCase === "string" && useCase ? useCase : user.useCase,
-  }).where(eq(users.id, user.id)).returning({ fullName: users.fullName, organizationName: users.organizationName, useCase: users.useCase });
+    emailTwoFactorEnabled: typeof emailTwoFactorEnabled === "boolean" ? emailTwoFactorEnabled : user.emailTwoFactorEnabled,
+  }).where(eq(users.id, user.id)).returning({
+    fullName: users.fullName,
+    organizationName: users.organizationName,
+    useCase: users.useCase,
+    emailTwoFactorEnabled: users.emailTwoFactorEnabled,
+  });
   return NextResponse.json(updated);
 }

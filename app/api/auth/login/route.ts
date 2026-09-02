@@ -1,9 +1,12 @@
 import { compare } from "bcryptjs";
+import { randomInt } from "crypto";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { createSession, sessionCookieName } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { sendVerificationEmail } from "@/lib/brevo";
+import { loginCodeHash, loginVerificationCookieName, sealPendingLogin } from "@/lib/login-verification";
 
 const databaseError = () =>
   NextResponse.json(
@@ -21,6 +24,15 @@ export async function POST(request: Request) {
 
     if (!user || typeof password !== "string" || !(await compare(password, user.passwordHash))) {
       return NextResponse.json({ error: "E-posta veya şifre hatalı." }, { status: 401 });
+    }
+
+    if (user.emailTwoFactorEnabled) {
+      const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+      const token = await sealPendingLogin({ userId: user.id, email: user.email, fullName: user.fullName, codeHash: loginCodeHash(user.id, code) });
+      await sendVerificationEmail({ email: user.email, name: user.fullName, code, purpose: "login" });
+      const response = NextResponse.json({ twoFactorRequired: true, email: user.email });
+      response.cookies.set(loginVerificationCookieName, token, { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", maxAge: 600, path: "/api/auth/login" });
+      return response;
     }
 
     const session = await createSession(user.id);

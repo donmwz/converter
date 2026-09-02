@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   accountType: text("account_type").notNull(),
   organizationName: text("organization_name"),
   useCase: text("use_case").notNull(),
+  emailTwoFactorEnabled: boolean("email_two_factor_enabled").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DatabaseBackup, Download, FileClock, LoaderCircle, LogOut, Save, Trash2, UserRound, UserX } from "lucide-react";
+import { DatabaseBackup, Download, FileClock, LoaderCircle, LogOut, Save, ShieldCheck, Trash2, UserRound, UserX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ScrollAwareHeader from "@/app/components/scroll-aware-header";
@@ -13,6 +13,7 @@ type User = {
   organizationName: string | null;
   useCase: string;
   createdAt: string;
+  emailTwoFactorEnabled: boolean;
 };
 
 type Conversion = {
@@ -34,6 +35,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [dataBusy, setDataBusy] = useState<"data" | "account" | null>(null);
+  const [securityBusy, setSecurityBusy] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -65,6 +67,28 @@ export default function ProfilePage() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/");
     router.refresh();
+  };
+
+  const toggleTwoFactor = async () => {
+    if (!user) return;
+    setSecurityBusy(true);
+    setMessage("");
+    const response = await fetch("/api/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fullName: user.fullName,
+        organizationName: user.organizationName,
+        useCase: user.useCase,
+        emailTwoFactorEnabled: !user.emailTwoFactorEnabled,
+      }),
+    });
+    const body = await response.json().catch(() => null);
+    if (response.ok) {
+      setUser((current) => current ? { ...current, ...body } : current);
+      setMessage(body.emailTwoFactorEnabled ? "E-posta ile iki faktörlü doğrulama etkinleştirildi." : "İki faktörlü doğrulama kapatıldı.");
+    } else setMessage(body?.error ?? "Güvenlik ayarı güncellenemedi.");
+    setSecurityBusy(false);
   };
 
   const remove = async (scope: "data" | "account") => {
@@ -130,6 +154,16 @@ export default function ProfilePage() {
             )}
           </section>
         </div>
+
+        <section className="mt-8 rounded-2xl border border-violet-100 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><ShieldCheck className="h-5 w-5" /></span>
+              <div><h2 className="font-semibold">E-posta ile iki faktörlü doğrulama</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">Etkinleştirildiğinde şifreniz doğru olsa bile giriş tamamlanmadan önce e-posta adresinize gönderilen 6 haneli, 10 dakika geçerli kod istenir.</p></div>
+            </div>
+            <button type="button" disabled={securityBusy} onClick={() => void toggleTwoFactor()} aria-pressed={user.emailTwoFactorEnabled} className={`inline-flex min-w-32 items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition disabled:opacity-50 ${user.emailTwoFactorEnabled ? "bg-violet-600 text-white hover:bg-violet-700" : "border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"}`}>{securityBusy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : user.emailTwoFactorEnabled ? "Etkin" : "Etkinleştir"}</button>
+          </div>
+        </section>
 
         <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-2"><DatabaseBackup className="h-5 w-5" /><h2 className="font-semibold">Veriler ve hesap</h2></div>

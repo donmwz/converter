@@ -60,6 +60,7 @@ const sections = [
     content: [
       "Oturum çerezleri 30 gün sonra otomatik olarak sona erer. Çıkış yaptığınızda oturum belirteci sunucudan kalıcı olarak silinir.",
       "Şifreler minimum 8 karakter uzunluğunda olmalıdır ve kayıt sırasında güçlü hash ile saklanır.",
+      "İsteyen kullanıcılar profil ayarlarından e-posta ile iki faktörlü doğrulamayı etkinleştirebilir. Etkin hesaplarda doğru şifreden sonra Brevo üzerinden gönderilen 6 haneli ve 10 dakika geçerli kod doğrulanmadan oturum oluşturulmaz.",
       "Profil ekranından verilerinizin tamamını ZIP olarak indirebilir, yalnızca kayıtlı dönüşüm verilerini silebilir veya hesabınızı ve bağlı tüm verileri kalıcı olarak kaldırabilirsiniz.",
     ],
   },

@@ -8,7 +8,7 @@ Convertly is a modern file conversion and document AI application built with Nex
 - PDF to DOCX, HTML, image, and text workflows
 - DOCX, PowerPoint, Excel, CSV, and HTML to PDF through a conversion worker
 - Document AI summaries, translations, table analysis, and document-scoped Q&A
-- Six-digit email verification with Brevo
+- Six-digit registration verification and optional email two-factor login with Brevo
 - User accounts, conversion history, data export, and account deletion
 - AES-256-GCM encrypted result files in private S3 storage
 - Optional browser-local privacy mode for supported conversions
@@ -86,6 +86,7 @@ Create an API key from **SMTP & API → API Keys**, verify the sender address, a
 
 - Passwords are hashed with bcrypt and never stored as plain text.
 - Session tokens are hashed in the database and delivered through HTTP-only cookies.
+- Users can enable email two-factor authentication; the session is created only after the six-digit, ten-minute login code is verified.
 - Stored result files are encrypted separately for each user.
 - Temporary source files are removed after server-side conversion.
 - Environment files, Vercel metadata, generated runtimes, and build output are excluded from Git.

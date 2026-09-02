@@ -39,6 +39,7 @@ export async function getCurrentUser(token: string | undefined) {
       accountType: true,
       organizationName: true,
       useCase: true,
+      emailTwoFactorEnabled: true,
       createdAt: true,
     },
   });
