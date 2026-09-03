@@ -1,7 +1,7 @@
 FROM node:22-bookworm-slim
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends libreoffice-writer libreoffice-impress fonts-dejavu-core python3 python3-pip poppler-utils tesseract-ocr tesseract-ocr-tur tesseract-ocr-eng \
+  && apt-get install -y --no-install-recommends libreoffice-writer libreoffice-impress fonts-dejavu-core python3 python3-pip poppler-utils p7zip-full tesseract-ocr tesseract-ocr-tur tesseract-ocr-eng \
   && python3 -m pip install --no-cache-dir --break-system-packages pdf2docx \
   && rm -rf /var/lib/apt/lists/*
 

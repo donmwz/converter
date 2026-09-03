@@ -5,6 +5,8 @@ Convertly is a modern file conversion and document AI application built with Nex
 ## Features
 
 - Document, image, audio, video, ZIP, and HTML conversion
+- Batch conversion for up to 20 same-format files with one ZIP result
+- ZIP creation plus ZIP, RAR, and 7Z extraction through the isolated conversion worker
 - PDF to DOCX, HTML, image, and text workflows
 - DOCX, PowerPoint, Excel, CSV, and HTML to PDF through a conversion worker
 - Document AI summaries, translations, table analysis, and document-scoped Q&A

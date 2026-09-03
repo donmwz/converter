@@ -26,15 +26,14 @@ import {
   LoaderCircle,
   Sparkles,
   X,
-  Layers3,
   Code2,
   PanelsTopLeft,
-  PackageOpen,
 } from "lucide-react";
 import { conversionTools, cardThemes, categoryDescriptions, formatGroups, type ConversionTool } from "@/lib/conversion-tools";
 import UserNav from "@/app/components/user-nav";
 import ScrollAwareHeader from "@/app/components/scroll-aware-header";
 import WelcomeGuide from "@/app/components/welcome-guide";
+import BatchArchiveTools from "@/app/components/batch-archive-tools";
 
 GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
@@ -55,10 +54,8 @@ const howItWorksSteps = [
 ] as const;
 
 const upcomingFeatures = [
-  { title: "Toplu dönüştürme", description: "Birden fazla dosyayı tek işlemde dönüştürme.", icon: Layers3 },
   { title: "Geliştirici API'si", description: "Dönüşümleri kendi uygulamanıza bağlama.", icon: Code2 },
   { title: "Tarayıcı eklentisi", description: "Dosyaları bulunduğunuz sayfadan hızlıca dönüştürme.", icon: PanelsTopLeft },
-  { title: "RAR ve 7z", description: "ZIP'e ek olarak daha fazla arşiv biçimi.", icon: PackageOpen },
 ] as const;
 
 const getFileExtension = (fileName: string) =>
@@ -270,6 +267,11 @@ export default function Home() {
   };
 
   const handleToolClick = (tool: ConversionTool) => {
+    if (tool.category === "Arşiv") {
+      setSelectedCategory("Arşiv");
+      document.getElementById("batch-tools")?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
     const formatMap: Record<string, string> = {
       DOCX: "docx", PDF: "pdf", PNG: "png", WEBP: "webp", MP3: "mp3", MP4: "mp4",
       TXT: "txt", HTML: "html", CSV: "csv", XLSX: "xlsx", ICO: "ico", WebM: "webm", WAV: "wav",
@@ -1145,6 +1147,8 @@ export default function Home() {
 
       </section>
 
+      <BatchArchiveTools dark={privacyMode} />
+
 
       {/* CONVERSION TOOLS GRID */}
 
@@ -1472,7 +1476,7 @@ export default function Home() {
               <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${privacyMode ? "text-gray-500" : "text-gray-400"}`}>Yol haritası</p>
               <h2 className={`mt-2 text-2xl font-bold tracking-tight ${privacyMode ? "text-white" : "text-gray-950"}`}>Daha güçlü iş akışları geliyor</h2>
               <p className={`mt-3 max-w-2xl text-sm leading-6 ${privacyMode ? "text-gray-400" : "text-gray-500"}`}>
-                Bugün arşivlerde ZIP destekleniyor. Aşağıdaki özellikler henüz kullanıma açık değil; geliştirme planımızda yer alıyor.
+                Toplu dönüşüm ile ZIP, RAR ve 7Z arşiv araçları kullanıma açıldı. Aşağıdaki ileri seviye özellikler geliştirme planımızda yer alıyor.
               </p>
               <div className="mt-7 grid gap-3 sm:grid-cols-2">
                 {upcomingFeatures.map((item) => {

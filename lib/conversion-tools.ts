@@ -30,7 +30,7 @@ export const formatGroups = [
   { label: "Görseller", formats: ["JPG", "PNG", "WEBP", "HEIC", "GIF", "SVG"], chip: "bg-emerald-50/80 text-emerald-800 ring-1 ring-emerald-100" },
   { label: "Video", formats: ["MP4", "MOV", "WebM"], chip: "bg-violet-50 text-violet-800 ring-1 ring-violet-100" },
   { label: "Ses", formats: ["MP3", "WAV", "OGG", "M4A", "AAC"], chip: "bg-slate-100 text-slate-700 ring-1 ring-slate-200" },
-  { label: "Arşiv", formats: ["ZIP"], chip: "bg-slate-50 text-slate-700 ring-1 ring-slate-200" },
+  { label: "Arşiv", formats: ["ZIP", "RAR", "7Z"], chip: "bg-slate-50 text-slate-700 ring-1 ring-slate-200" },
 ] as const;
 
 export const conversionTools: ConversionTool[] = [
@@ -70,6 +70,9 @@ export const conversionTools: ConversionTool[] = [
   { from: "WAV", to: "AAC", title: "WAV AAC Çevirme", description: "WAV dosyalarını AAC formatına dönüştürün.", category: "Ses", theme: "fuchsia" },
 
   { from: "ZIP", to: "Dosya", title: "Arşiv aç", description: "ZIP arşivlerinden dosya çıkarıp dönüştürmeye başlayın.", category: "Arşiv", theme: "slate" },
+  { from: "RAR", to: "ZIP", title: "RAR arşivini aç", description: "RAR arşivlerini güvenli biçimde çıkarıp ZIP olarak indirin.", category: "Arşiv", theme: "violet" },
+  { from: "7Z", to: "ZIP", title: "7Z arşivini aç", description: "7Z arşivlerini açıp evrensel ZIP biçiminde indirin.", category: "Arşiv", theme: "indigo" },
+  { from: "Dosyalar", to: "ZIP", title: "ZIP oluştur", description: "Birden fazla dosyayı tek bir ZIP arşivinde sıkıştırın.", category: "Arşiv", theme: "fuchsia" },
 ];
 
 export const categoryDescriptions: Record<ConversionTool["category"], string> = {
@@ -77,5 +80,5 @@ export const categoryDescriptions: Record<ConversionTool["category"], string> = 
   Görseller: "JPG, PNG, WEBP, HEIC ve daha fazlasını dönüştürün veya düzenleyin.",
   Video: "MP4, MOV ve WebM formatları arasında dönüşüm yapın veya ses ayıklayın.",
   Ses: "MP3, WAV, OGG ve diğer ses formatları arasında dönüştürün.",
-  Arşiv: "Şu anda ZIP arşivlerini açın; RAR ve 7z desteği geliştirme planımızda.",
+  Arşiv: "Dosyaları ZIP'e sıkıştırın; ZIP, RAR ve 7Z arşivlerini güvenli biçimde açın.",
 };

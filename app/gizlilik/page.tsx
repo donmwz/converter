@@ -51,6 +51,7 @@ const sections = [
     content: [
       "Sunucu tarafı dönüşümler izole geçici dizinlerde çalışır. Her istek için benzersiz bir klasör oluşturulur ve işlem sonunda temizlenir.",
       "Genel dönüşümlerde dosya boyutu 100 MB, AI belge işlemlerinde 25 MB ile sınırlandırılmıştır. AI yüklemelerinde uzantının yanında MIME türü de doğrulanır.",
+      "RAR, 7Z ve ZIP çıkarma işlemlerinde arşiv yolları açılmadan önce denetlenir; güvenli olmayan üst dizin veya mutlak yol kayıtları reddedilir. Açılmış içerik 2.000 dosya ve toplam 500 MB ile sınırlandırılır.",
       "Veritabanı bağlantıları kimlik bilgileriyle yapılandırılır. AI özellikleri kullanılmadığında dönüşüm içeriği bir AI sağlayıcısına gönderilmez; AI kullanıldığında gerekli ayrıştırılmış içerikler yukarıda açıklanan şekilde OpenRouter'a iletilir.",
     ],
   },
