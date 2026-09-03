@@ -3,6 +3,7 @@
 import JSZip from "jszip";
 import { Archive, CheckCircle2, Files, LoaderCircle, PackageOpen, Upload, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { useSlowOperation } from "@/app/components/slow-turtle-game";
 
 const extension = (name: string) => name.split(".").pop()?.toLowerCase() ?? "";
 const safeBase = (name: string) => name.replace(/\.[^.]+$/, "").replace(/[^\p{L}\p{N}._-]+/gu, "-");
@@ -49,6 +50,7 @@ export default function BatchArchiveTools({ dark = false }: { dark?: boolean }) 
   const [files, setFiles] = useState<File[]>([]); const [target, setTarget] = useState(""); const [busy, setBusy] = useState<"batch" | "archive" | null>(null);
   const [progress, setProgress] = useState(0); const [message, setMessage] = useState(""); const [archiveFile, setArchiveFile] = useState<File | null>(null);
   const batchInput = useRef<HTMLInputElement>(null); const archiveInput = useRef<HTMLInputElement>(null); const compressInput = useRef<HTMLInputElement>(null);
+  useSlowOperation(Boolean(busy), "batch-archive-operation");
   const source = files[0] ? extension(files[0].name) : ""; const options = useMemo(() => targets[source] ?? [], [source]);
   const surface = dark ? "border-white/10 bg-[#15191f] text-white" : "border-gray-200 bg-white text-gray-950";
   const muted = dark ? "text-gray-400" : "text-gray-500";

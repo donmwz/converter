@@ -34,6 +34,7 @@ import UserNav from "@/app/components/user-nav";
 import ScrollAwareHeader from "@/app/components/scroll-aware-header";
 import WelcomeGuide from "@/app/components/welcome-guide";
 import BatchArchiveTools from "@/app/components/batch-archive-tools";
+import { useSlowOperation } from "@/app/components/slow-turtle-game";
 
 GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
@@ -147,6 +148,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ffmpegRef = useRef<FFmpeg | null>(null);
   const conversionRecordRef = useRef<Promise<string | null> | null>(null);
+  useSlowOperation(isConverting, "main-conversion");
 
   const setDownload = (value: { name: string; url: string } | null) => {
     setDownloadState(value);
