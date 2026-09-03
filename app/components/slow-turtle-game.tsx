@@ -83,14 +83,17 @@ export default function SlowTurtleGame() {
     window.addEventListener("keydown", key);
     const drawTurtle = (x: number, y: number, crashed: boolean, now: number) => {
       const flash = crashed && Math.floor(now / 110) % 2 === 0;
+      const step = Math.sin(now / 75) * 2.2;
+      const bob = Math.abs(Math.sin(now / 150)) * 1.4;
       context.save();
+      context.translate(0, -bob);
       if (crashed) { context.shadowColor = "#ef4444"; context.shadowBlur = flash ? 16 : 5; }
       context.fillStyle = crashed ? (flash ? "#ef4444" : "#fb7185") : "#22c55e"; context.beginPath(); context.ellipse(x + 18, y, 18, 10, 0, 0, Math.PI * 2); context.fill();
       context.fillStyle = crashed ? "#991b1b" : "#14532d"; context.beginPath(); context.ellipse(x + 17, y - 2, 12, 7, 0, 0, Math.PI * 2); context.fill();
       context.strokeStyle = crashed ? "#fecaca" : "#4ade80"; context.lineWidth = 1.3; context.beginPath(); context.moveTo(x + 8, y - 2); context.lineTo(x + 26, y - 2); context.moveTo(x + 17, y - 8); context.lineTo(x + 17, y + 4); context.stroke();
       context.fillStyle = crashed ? "#fca5a5" : "#4ade80"; context.beginPath(); context.arc(x + 37, y - 1, 6.5, 0, Math.PI * 2); context.fill();
       context.fillStyle = "#111827"; context.fillRect(x + 35, y - 3, 1.8, 1.8);
-      context.fillStyle = crashed ? "#dc2626" : "#16a34a"; context.fillRect(x + 5, y + 7, 7, 3); context.fillRect(x + 25, y + 7, 7, 3);
+      context.fillStyle = crashed ? "#dc2626" : "#16a34a"; context.fillRect(x + 5 + step, y + 7, 7, 3); context.fillRect(x + 25 - step, y + 7, 7, 3);
       context.restore();
     };
     const loop = (now: number) => {
@@ -102,16 +105,17 @@ export default function SlowTurtleGame() {
       for (const cloud of [{ x: width * .18, y: 18 }, { x: width * .68, y: 25 }]) { const x = (cloud.x - now * .008 + width) % width; context.beginPath(); context.arc(x, cloud.y, 8, 0, Math.PI * 2); context.arc(x + 10, cloud.y - 4, 11, 0, Math.PI * 2); context.arc(x + 22, cloud.y, 8, 0, Math.PI * 2); context.fill(); }
       context.fillStyle = "rgba(196,181,253,.25)"; context.beginPath(); context.moveTo(0, ground); for (let x = 0; x <= width; x += 80) context.quadraticCurveTo(x + 40, 35 + (x % 160) / 8, x + 80, ground); context.lineTo(width, ground); context.closePath(); context.fill();
       context.strokeStyle = "#c4b5fd"; context.lineWidth = 2; context.beginPath(); context.moveTo(0, ground); context.lineTo(width, ground); context.stroke();
-      context.fillStyle = "#ddd6fe"; context.beginPath(); for (let x = -((now / 22) % 28); x < width; x += 28) context.roundRect(x, 76, 15, 3, 2); context.fill();
+      context.fillStyle = "#ddd6fe"; context.beginPath(); for (let x = -((now / 15) % 28); x < width; x += 28) context.roundRect(x, 76, 15, 3, 2); context.fill();
+      const turtleX = 76 + Math.sin(now / 620) * 24;
       for (const obstacle of obstacles) {
-        obstacle.x -= 4.2 * delta;
+        obstacle.x -= 5.6 * delta;
         if (obstacle.x < -35) { obstacle.x = width + Math.random() * 260; points += 1; setScore(points); }
         const rock = context.createLinearGradient(obstacle.x, ground - obstacle.height, obstacle.x + obstacle.width, ground); rock.addColorStop(0, "#a78bfa"); rock.addColorStop(1, "#6d28d9"); context.fillStyle = rock; context.beginPath(); context.roundRect(obstacle.x, ground - obstacle.height, obstacle.width, obstacle.height, 5); context.fill();
         context.fillStyle = "rgba(255,255,255,.32)"; context.beginPath(); context.arc(obstacle.x + obstacle.width * .35, ground - obstacle.height * .65, 2.5, 0, Math.PI * 2); context.fill();
-        const hit = 48 + 42 > obstacle.x && 48 < obstacle.x + obstacle.width && turtleY + 10 > ground - obstacle.height;
+        const hit = turtleX + 42 > obstacle.x && turtleX < obstacle.x + obstacle.width && turtleY + 10 > ground - obstacle.height;
         if (hit && now > crashUntil) { crashUntil = now + 900; points = 0; setScore(0); obstacle.x = width + 120; velocity = -4; }
       }
-      drawTurtle(48, turtleY, now < crashUntil, now); frame = requestAnimationFrame(loop);
+      drawTurtle(turtleX, turtleY, now < crashUntil, now); frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);
     return () => { cancelAnimationFrame(frame); window.removeEventListener("keydown", key); };
