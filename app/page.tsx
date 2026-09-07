@@ -793,14 +793,14 @@ export default function Home() {
       )}
 
       {/* NAVBAR */}
-      <ScrollAwareHeader className="border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur-xl">
+      <ScrollAwareHeader className={`border-b backdrop-blur-xl ${privacyMode ? "border-white/[0.08] bg-[#0b0d10]/90 shadow-lg shadow-black/20" : "border-gray-200 bg-white/95 shadow-sm"}`}>
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
 
           <div className="flex items-center gap-12">
 
             <a
               href="#"
-              className="text-xl font-bold tracking-tight text-gray-950"
+              className={`text-xl font-bold tracking-tight ${privacyMode ? "text-white" : "text-gray-950"}`}
             >
               Convertly
             </a>
@@ -809,35 +809,35 @@ export default function Home() {
 
               <a
                 href="#convert"
-                className="text-sm font-medium text-gray-600 transition hover:text-gray-950"
+                className={`text-sm font-medium transition ${privacyMode ? "text-slate-400 hover:text-white" : "text-gray-600 hover:text-gray-950"}`}
               >
                 Dönüştür
               </a>
 
               <a
                 href="#tools"
-                className="text-sm font-medium text-gray-600 transition hover:text-gray-950"
+                className={`text-sm font-medium transition ${privacyMode ? "text-slate-400 hover:text-white" : "text-gray-600 hover:text-gray-950"}`}
               >
                 Araçlar
               </a>
 
               <a
                 href="#how-it-works"
-                className="text-sm font-medium text-gray-600 transition hover:text-gray-950"
+                className={`text-sm font-medium transition ${privacyMode ? "text-slate-400 hover:text-white" : "text-gray-600 hover:text-gray-950"}`}
               >
                 Nasıl çalışır
               </a>
 
               <a
                 href="#pricing"
-                className="text-sm font-medium text-gray-600 transition hover:text-gray-950"
+                className={`text-sm font-medium transition ${privacyMode ? "text-slate-400 hover:text-white" : "text-gray-600 hover:text-gray-950"}`}
               >
                 Plan
               </a>
 
               <a
                 href="/belge-ai"
-                className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-gray-950 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-violet-200/50"
+                className={`group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-3.5 py-2 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:shadow-lg ${privacyMode ? "border border-violet-300/20 bg-violet-400/10 shadow-sm shadow-violet-950/30 hover:bg-violet-400/15 hover:shadow-violet-950/50" : "bg-gray-950 shadow-sm hover:shadow-violet-200/50"}`}
               >
                 <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-violet-400/20 to-fuchsia-400/0 opacity-0 transition group-hover:opacity-100" />
                 <Sparkles className="relative h-3.5 w-3.5 text-violet-200 transition group-hover:rotate-12 group-hover:text-white" />
@@ -849,7 +849,7 @@ export default function Home() {
 
           </div>
 
-          <UserNav />
+          <UserNav dark={privacyMode} />
 
         </div>
       </ScrollAwareHeader>
@@ -1511,25 +1511,34 @@ export default function Home() {
 
       <section className={`px-6 pb-24 ${privacyMode ? "bg-[#0b0d10]" : ""}`}>
 
-        <div className={`mx-auto max-w-6xl rounded-3xl border px-8 py-16 text-center md:px-16 ${privacyMode ? "border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.025]" : "border-transparent bg-gray-100"}`}>
+        <div className={`relative mx-auto max-w-6xl overflow-hidden rounded-3xl border px-7 py-10 md:px-12 md:py-12 ${privacyMode ? "border-white/10 bg-[#11151b]" : "border-gray-200 bg-white shadow-sm"}`}>
+          <div aria-hidden="true" className={`absolute -right-24 -top-28 h-72 w-72 rounded-full blur-3xl ${privacyMode ? "bg-violet-500/15" : "bg-violet-100/70"}`} />
 
-          <div className="mx-auto max-w-2xl">
+          <div className="relative flex flex-col items-start justify-between gap-8 text-left md:flex-row md:items-center">
 
-            <h2 className={`text-3xl font-bold tracking-tight md:text-5xl ${privacyMode ? "text-white" : "text-gray-950"}`}>
-              Dönüştürmeye hazır mısınız?
+            <div className="max-w-2xl">
+
+              <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${privacyMode ? "border-white/10 bg-white/[0.05] text-violet-200" : "border-violet-100 bg-violet-50 text-violet-700"}`}>
+                <Zap className="h-3.5 w-3.5" /> Hızlı ve güvenli
+              </span>
+
+            <h2 className={`mt-4 text-2xl font-bold tracking-tight md:text-3xl ${privacyMode ? "text-white" : "text-gray-950"}`}>
+              Dosyanız hazırsa, gerisini Convertly halletsin.
             </h2>
 
             <p className={`mt-5 ${privacyMode ? "text-gray-400" : "text-gray-500"}`}>
-              İlk dosyanızı yükleyin ve dönüştürmenin daha basit yolunu deneyimleyin.
+              Formatı seçin, dosyanızı bırakın ve sonucu birkaç adımda alın.
             </p>
+
+            </div>
 
 
             <a
               href="#convert"
-              className={`mt-8 inline-flex items-center gap-2 rounded-xl px-7 py-3.5 text-sm font-semibold transition ${privacyMode ? "bg-white text-gray-950 hover:bg-gray-200" : "bg-gray-950 text-white hover:bg-gray-800"}`}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-6 py-3.5 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 ${privacyMode ? "bg-white text-gray-950 hover:bg-gray-200" : "bg-gray-950 text-white hover:bg-gray-800"}`}
             >
 
-              Dönüştürmeye başla
+              Dosya seç
 
               <ArrowRight className="h-4 w-4" />
 
