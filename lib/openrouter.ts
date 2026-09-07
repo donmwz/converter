@@ -2,7 +2,7 @@ import "server-only";
 
 type Message = { role: "system" | "user" | "assistant"; content: string };
 
-export async function openRouterChat(messages: Message[], maxTokens = 1800) {
+export async function openRouterChat(messages: Message[], maxTokens = 1800, preferFallback = false) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY yapılandırılmamış.");
 
@@ -13,7 +13,7 @@ export async function openRouterChat(messages: Message[], maxTokens = 1800) {
     .split(",")
     .map((model) => model.trim())
     .filter(Boolean);
-  const models = [...new Set([primaryModel, ...configuredFallbacks])];
+  const models = [...new Set(preferFallback ? [...configuredFallbacks, primaryModel] : [primaryModel, ...configuredFallbacks])];
   let modelIndex = 0;
   let lastError = "AI sağlayıcısı yanıt oluşturamadı.";
 

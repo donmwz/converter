@@ -5,6 +5,7 @@ import { attachmentDisposition } from "@/lib/content-disposition";
 import * as XLSX from "xlsx";
 import { getSessionUserId, sessionCookieName } from "@/lib/auth";
 import { openRouterChat, splitDocument } from "@/lib/openrouter";
+import { aiLanguageName } from "@/lib/ai-languages";
 
 export const runtime = "nodejs";
 const maximumFileSize = 25 * 1024 * 1024;
@@ -46,14 +47,29 @@ async function translateBatch(values: string[], sourceLanguage: string, targetLa
       for (const piece of pieces) outputs.push((await translateItems([piece]))[0]);
       return [outputs.join("\n\n")];
     }
-    const response = await openRouterChat([
-      { role: "system", content: `Kaynak dil: ${sourceLanguage || "otomatik algıla"}. Her öğeyi ${targetLanguage} diline eksiksiz çevir. Sayıları, biçim işaretlerini ve boşlukları koru. Yalnızca girişle aynı uzunlukta geçerli bir JSON string dizisi döndür; açıklama veya markdown ekleme.` },
+    const target = aiLanguageName(targetLanguage);
+    const prompt = `Translate every JSON array item completely into ${target}. Source language: ${aiLanguageName(sourceLanguage, true)}. Every output string MUST be written in ${target}; never copy source-language sentences unchanged. Preserve numbers, formatting marks and whitespace. Return only a valid JSON string array with exactly ${items.length} items and no markdown or explanation.`;
+    let response = await openRouterChat([
+      { role: "system", content: prompt },
       { role: "user", content: JSON.stringify(items) },
     ], 4200);
     try {
-      const json = response.match(/\[[\s\S]*\]/)?.[0] ?? response.replace(/^```(?:json)?\s*|\s*```$/g, "");
-      const parsed = JSON.parse(json);
+      let json = response.match(/\[[\s\S]*\]/)?.[0] ?? response.replace(/^```(?:json)?\s*|\s*```$/g, "");
+      let parsed = JSON.parse(json);
       if (!Array.isArray(parsed) || parsed.length !== items.length || parsed.some((item) => typeof item !== "string")) throw new Error();
+      const meaningful = items.map((item, index) => ({ index, source: item.trim().toLocaleLowerCase("tr-TR"), output: parsed[index].trim().toLocaleLowerCase("tr-TR") })).filter(({ source }) => source.length >= 4 && /\p{L}/u.test(source));
+      const unchanged = meaningful.filter(({ source, output }) => source === output).length;
+      if (meaningful.length && unchanged / meaningful.length >= 0.6 && sourceLanguage !== targetLanguage) {
+        response = await openRouterChat([
+          { role: "system", content: `${prompt} A previous model copied the source text. The retry is invalid unless the language visibly changes to ${target}.` },
+          { role: "user", content: JSON.stringify(items) },
+        ], 4200, true);
+        json = response.match(/\[[\s\S]*\]/)?.[0] ?? response.replace(/^```(?:json)?\s*|\s*```$/g, "");
+        parsed = JSON.parse(json);
+        if (!Array.isArray(parsed) || parsed.length !== items.length || parsed.some((item) => typeof item !== "string")) throw new Error();
+        const retryUnchanged = meaningful.filter(({ source, index }) => source === parsed[index].trim().toLocaleLowerCase("tr-TR")).length;
+        if (meaningful.length && retryUnchanged / meaningful.length >= 0.6) throw new Error();
+      }
       return parsed;
     } catch {
       if (items.length > 1) {

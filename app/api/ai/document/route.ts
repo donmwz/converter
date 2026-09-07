@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getSessionUserId, sessionCookieName } from "@/lib/auth";
 import { openRouterChat, relevantPassages, splitDocument } from "@/lib/openrouter";
+import { aiLanguageName } from "@/lib/ai-languages";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -40,9 +41,9 @@ async function mergeSummaries(partials: string[]) {
     level = [];
     for (const items of groups) {
       level.push(await openRouterChat([
-        { role: "system", content: "Bölüm özetlerini sırasını ve tüm önemli bilgileri koruyarak tek bir profesyonel Türkçe özette birleştir. Tekrarları kaldır; tarihleri, kararları, sayısal verileri ve belgenin son bölümlerini atlama. Markdown başlıkları ve kısa madde işaretleri kullan. Kaynakta olmayan bilgi ekleme." },
+        { role: "system", content: "Bölüm özetlerini sırasını ve tüm önemli bilgileri koruyarak kapsamlı, profesyonel bir Türkçe raporda birleştir. Kısaltma uğruna hiçbir ana fikir, gerekçe, tarih, kişi, karar, istisna, sonuç veya sayısal veriyi atlama. Yalnızca gerçek tekrarları kaldır. Belgenin başı, ortası ve sonuna dengeli yer ver. Markdown başlıkları, açıklayıcı paragraflar ve gerektiğinde kısa madde işaretleri kullan. Kaynakta olmayan bilgi ekleme." },
         { role: "user", content: items.map((item, index) => `BÖLÜM ${index + 1}\n${item}`).join("\n\n---\n\n") },
-      ], 3200));
+      ], 4800));
     }
   }
   return level[0] ?? "";
@@ -98,19 +99,26 @@ export async function POST(request: Request) {
 
     if (action === "summarize") {
       const partials = await mapWithConcurrency(chunks, 3, (chunk, index) => openRouterChat([
-          { role: "system", content: "Verilen belge bölümünü yalnızca içeriğine dayanarak yapılandırılmış biçimde özetle. Belge Başlığı, Genel Bakış, Temel Noktalar, Önemli Bulgular, Önemli Sayısal Veriler ve Sonuç başlıklarından uygun olanları Markdown başlıklarıyla kullan. Ana fikirleri, tarihleri, kararları ve sayısal verileri koru; yeni bilgi ekleme. Türkçe yaz." },
+          { role: "system", content: "Verilen belge bölümünü yalnızca içeriğine dayanarak ayrıntılı ve kapsamlı biçimde özetle. Ana fikirlerin yanında gerekçeleri, önemli açıklamaları, kişi ve kurumları, tarihleri, kararları, istisnaları, sonuçları ve tüm anlamlı sayısal verileri koru. Kısa tutmaya çalışma; bu bölümdeki önemli hiçbir bilgiyi atlama. Uygun Markdown başlıkları ve okunabilir paragraflar kullan. Yeni bilgi ekleme. Türkçe yaz." },
           { role: "user", content: `Bölüm ${index + 1}/${chunks.length}:\n\n${chunk}` },
-        ], 1600));
+        ], 2600));
       const result = partials.length === 1 ? partials[0] : await mergeSummaries(partials);
       return NextResponse.json({ result });
     }
 
     if (action === "translate") {
       if (typeof targetLanguage !== "string" || !targetLanguage.trim()) return NextResponse.json({ error: "Hedef dil gerekli." }, { status: 400 });
-      const translated = await mapWithConcurrency(chunks, 3, (chunk) => openRouterChat([
-          { role: "system", content: `Kaynak dil: ${sourceLanguage || "otomatik algıla"}. Metni ${targetLanguage} diline eksiksiz çevir. Özetleme yapma. Başlıkları, paragrafları, madde işaretlerini, sayıları ve tablo benzeri satır düzenini mümkün olduğunca koru. Açıklama veya yorum ekleme.` },
-          { role: "user", content: chunk },
-        ], 4200));
+      const source = aiLanguageName(typeof sourceLanguage === "string" ? sourceLanguage : "", true);
+      const target = aiLanguageName(targetLanguage);
+      const translated = await mapWithConcurrency(chunks, 3, async (chunk) => {
+        const prompt = `Translate the complete SOURCE TEXT into ${target}. Source language: ${source}. The output MUST be written in ${target}; never return the source language unchanged. Preserve headings, paragraphs, bullets, numbers and table-like rows. Do not summarize, explain or add commentary. Return only the translated text.`;
+        let output = await openRouterChat([{ role: "system", content: prompt }, { role: "user", content: `SOURCE TEXT:\n${chunk}` }], 4200);
+        if (output.trim().toLocaleLowerCase("tr-TR") === chunk.trim().toLocaleLowerCase("tr-TR") && sourceLanguage !== targetLanguage) {
+          output = await openRouterChat([{ role: "system", content: `${prompt} A previous model incorrectly copied the source. This retry is invalid unless the language visibly changes to ${target}.` }, { role: "user", content: `SOURCE TEXT:\n${chunk}` }], 4200, true);
+          if (output.trim().toLocaleLowerCase("tr-TR") === chunk.trim().toLocaleLowerCase("tr-TR")) throw new Error("AI_TRANSLATION_UNCHANGED");
+        }
+        return output;
+      });
       return NextResponse.json({ result: translated.join("\n\n") });
     }
 
