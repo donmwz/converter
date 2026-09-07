@@ -8,30 +8,52 @@ export async function openRouterChat(messages: Message[], maxTokens = 1800) {
 
   const conversation = [...messages];
   const parts: string[] = [];
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001", "X-Title": "Convertly" },
-      body: JSON.stringify({ model: process.env.OPENROUTER_MODEL ?? "inclusionai/ling-3.0-flash-fin:free", messages: conversation, temperature: 0.2, max_tokens: maxTokens }),
-      cache: "no-store",
-      signal: AbortSignal.timeout(75_000),
-    });
+  const primaryModel = process.env.OPENROUTER_MODEL ?? "openrouter/free";
+  const configuredFallbacks = (process.env.OPENROUTER_FALLBACK_MODELS ?? "openrouter/free")
+    .split(",")
+    .map((model) => model.trim())
+    .filter(Boolean);
+  const models = [...new Set([primaryModel, ...configuredFallbacks])];
+  let modelIndex = 0;
+  let lastError = "AI sağlayıcısı yanıt oluşturamadı.";
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const model = models[Math.min(modelIndex, models.length - 1)];
+    let response: Response;
+    try {
+      response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001", "X-Title": "Convertly" },
+        body: JSON.stringify({ model, messages: conversation, temperature: 0.2, max_tokens: maxTokens, reasoning: { effort: "none", exclude: true } }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(75_000),
+      });
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "AI sağlayıcısına bağlanılamadı.";
+      if (modelIndex < models.length - 1) modelIndex += 1;
+      continue;
+    }
     const body = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(body?.error?.message ?? "OpenRouter isteği başarısız oldu.");
+    if (!response.ok) {
+      lastError = body?.error?.message ?? `OpenRouter isteği ${response.status} durumuyla başarısız oldu.`;
+      if (modelIndex < models.length - 1) modelIndex += 1;
+      if (attempt < 3) continue;
+      throw new Error(lastError);
+    }
     const content = body?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) {
-      if (attempt === 0) {
-        conversation.push({ role: "user", content: "Yanıt oluşturulamadı. Belge içeriğine dayanarak istenen yanıtı şimdi eksiksiz üret." });
-        continue;
-      }
-      throw new Error("AI_PROVIDER_EMPTY_RESPONSE");
+      lastError = `AI_PROVIDER_EMPTY_RESPONSE:${model}`;
+      if (modelIndex < models.length - 1) { modelIndex += 1; continue; }
+      conversation.push({ role: "user", content: "Önceki yanıt boş kaldı. Belge içeriğine dayanarak istenen yanıtı şimdi eksiksiz üret." });
+      continue;
     }
     parts.push(content.trim());
-    if (body?.choices?.[0]?.finish_reason !== "length") break;
+    if (body?.choices?.[0]?.finish_reason !== "length") return parts.join("\n\n").trim();
     conversation.push({ role: "assistant", content });
     conversation.push({ role: "user", content: "Yanıt token sınırında kesildi. Kaldığın yerden, tekrar etmeden devam et ve bütün eksik bölümleri tamamla." });
   }
-  return parts.join("\n\n").trim();
+  if (parts.length) return parts.join("\n\n").trim();
+  throw new Error(lastError);
 }
 
 export function splitDocument(text: string, maxCharacters = 10000) {

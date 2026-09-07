@@ -46,7 +46,8 @@ Use [.env.example](./.env.example) as the safe template. Never commit `.env.loca
 - `S3_REGION`, `S3_BUCKET`: private bucket location
 - `S3_ACCESS_KEY`, `S3_SECRET_KEY`: least-privilege S3 credentials
 - `FILE_ENCRYPTION_KEY`: 32-byte key encoded as 64 hexadecimal characters or Base64
-- `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`: Document AI settings
+- `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`: Document AI primary model settings
+- `OPENROUTER_FALLBACK_MODELS`: comma-separated fallback models; defaults to OpenRouter's free router
 - `BREVO_API_KEY`: Brevo API key, normally beginning with `xkeysib-`
 - `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`: verified transactional sender
 - `NEXT_PUBLIC_APP_URL`: public application URL
