@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { forwardToConversionService, hasConversionService, isAuthorizedConversionServiceRequest } from "@/lib/conversion-service";
+import { attachmentDisposition } from "@/lib/content-disposition";
 
 export const runtime = "nodejs";
 
@@ -125,7 +126,7 @@ export async function POST(request: Request) {
         "Content-Type": isPdf
           ? "application/pdf"
           : isHtmlOutput ? "text/html; charset=utf-8" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Content-Disposition": attachmentDisposition(fileName),
         "Cache-Control": "no-store",
         ...corsHeaders,
       },
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Ofis dönüştürme hatası:", error);
     return Response.json(
-      { error: "Dosya dönüştürülemedi. Yerel LibreOffice ve PDF düzen analizi hizmetinin çalıştığından emin olun." },
+      { error: "Dosya dönüştürme hizmeti bu belgeyi işleyemedi. Dosyanın bozuk veya şifreli olmadığını kontrol edip tekrar deneyin." },
       { status: 500, headers: corsHeaders }
     );
   } finally {

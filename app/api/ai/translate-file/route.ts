@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import JSZip from "jszip";
+import { attachmentDisposition } from "@/lib/content-disposition";
 import * as XLSX from "xlsx";
 import { getSessionUserId, sessionCookieName } from "@/lib/auth";
 import { openRouterChat } from "@/lib/openrouter";
@@ -112,7 +113,7 @@ export async function POST(request: Request) {
     }
     const base = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]/g, "_");
     return new Response(output.buffer.slice(output.byteOffset, output.byteOffset + output.byteLength) as ArrayBuffer, {
-      headers: { "Content-Type": contentType, "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(`${base}-${targetLanguage}.${extension}`)}`, "Cache-Control": "private, no-store" },
+      headers: { "Content-Type": contentType, "Content-Disposition": attachmentDisposition(`${base}-${targetLanguage}.${extension}`), "Cache-Control": "private, no-store" },
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Belge çevrilemedi." }, { status: 500 });

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { forwardToConversionService, hasConversionService, isAuthorizedConversionServiceRequest } from "@/lib/conversion-service";
+import { attachmentDisposition } from "@/lib/content-disposition";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
     if (paths.some((path) => path.split(/[\\/]/).includes("..") || /^[a-z]:|^[\\/]/i.test(path))) throw new Error("ARCHIVE_PATH");
     await execFileAsync("7z", ["x", source, `-o${extracted}`, "-y"], { timeout: 180_000, maxBuffer: 5 * 1024 * 1024 });
     await execFileAsync("7z", ["a", "-tzip", output, join(extracted, "*")], { timeout: 180_000, maxBuffer: 5 * 1024 * 1024 });
-    return new Response(await readFile(output), { headers: { "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="${file.name.replace(/\.(rar|7z|zip)$/i, "")}-acilmis.zip"`, "Cache-Control": "no-store" } });
+    return new Response(await readFile(output), { headers: { "Content-Type": "application/zip", "Content-Disposition": attachmentDisposition(`${file.name.replace(/\.(rar|7z|zip)$/i, "")}-acilmis.zip`), "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Arşiv çıkarma hatası:", error);
     const message = error instanceof Error && /ARCHIVE_LIMIT/.test(error.message) ? "Arşivin açılmış boyutu veya dosya sayısı güvenlik sınırını aşıyor." : error instanceof Error && /ARCHIVE_PATH/.test(error.message) ? "Arşiv güvenli olmayan dosya yolları içeriyor." : "Arşiv açılamadı. Dosyanın bozuk veya şifreli olmadığını kontrol edin.";
