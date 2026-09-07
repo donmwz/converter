@@ -78,7 +78,7 @@ const sections = [
     icon: CircleDollarSign,
     title: "Ücretsiz ve reklamsız",
     content: [
-      "Convertly şu anda beta sürecinde ücretsizdir ve reklam göstermez. Genel dönüşümlerde dosya başına 100 MB, Belge AI işlemlerinde 25 MB sınırı vardır. Sabit bir günlük kota uygulanmaz; kötüye kullanımı önleme, altyapı kapasitesi ve OpenRouter sağlayıcı limitleri nedeniyle geçici sınırlar oluşabilir. Ücretli veya kurumsal bir plan henüz satışta değildir.",
+      "Convertly ücretsizdir ve reklam göstermez. Genel dönüşümlerde dosya başına 100 MB, Belge AI işlemlerinde 25 MB sınırı vardır. Sabit bir günlük kota uygulanmaz; kötüye kullanımı önleme, altyapı kapasitesi ve OpenRouter sağlayıcı limitleri nedeniyle geçici sınırlar oluşabilir. Ücretli veya kurumsal bir plan henüz satışta değildir.",
     ],
   },
 ];

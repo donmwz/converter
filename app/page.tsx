@@ -1031,7 +1031,7 @@ export default function Home() {
                     ) : selectedFileExtension === "pdf" ? (
                       <>
                         <option value="docx-visual">DOCX (birebir görünüm — önerilen)</option>
-                        <option value="docx">DOCX (düzenlenebilir — beta)</option>
+                        <option value="docx">DOCX (düzenlenebilir)</option>
                         <option value="txt">TXT</option>
                         <option value="html">HTML</option>
                         <option value="png-zip">PNG (tüm sayfalar ZIP)</option>
@@ -1458,7 +1458,7 @@ export default function Home() {
             <article className={`rounded-3xl border p-8 ${privacyMode ? "border-white/10 bg-white/[0.05]" : "border-gray-200 bg-gray-50"}`}>
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${privacyMode ? "text-violet-300" : "text-violet-600"}`}>Beta planı</p>
+                  <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${privacyMode ? "text-violet-300" : "text-violet-600"}`}>Ücretsiz plan</p>
                   <h2 className={`mt-2 text-3xl font-bold tracking-tight ${privacyMode ? "text-white" : "text-gray-950"}`}>Ücretsiz</h2>
                 </div>
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${privacyMode ? "bg-white/10 text-gray-200" : "bg-white text-gray-600 ring-1 ring-gray-200"}`}>Kart gerekmez</span>
@@ -1470,7 +1470,7 @@ export default function Home() {
                 <li>Şu anda reklam veya ücretli plan bulunmuyor</li>
               </ul>
               <p className={`mt-7 text-xs leading-5 ${privacyMode ? "text-gray-500" : "text-gray-400"}`}>
-                Beta sürecinde limitler ve plan yapısı değişebilir. Değişiklikler kullanıma sunulmadan önce açıkça duyurulur.
+                Kullanım limitleri ve plan yapısındaki değişiklikler yürürlüğe girmeden önce açıkça duyurulur.
               </p>
             </article>
 
