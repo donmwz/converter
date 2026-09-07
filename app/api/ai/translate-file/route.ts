@@ -4,7 +4,7 @@ import JSZip from "jszip";
 import { attachmentDisposition } from "@/lib/content-disposition";
 import * as XLSX from "xlsx";
 import { getSessionUserId, sessionCookieName } from "@/lib/auth";
-import { openRouterChat } from "@/lib/openrouter";
+import { openRouterChat, splitDocument } from "@/lib/openrouter";
 
 export const runtime = "nodejs";
 const maximumFileSize = 25 * 1024 * 1024;
@@ -25,20 +25,50 @@ function encodeXml(value: string) {
 async function translateBatch(values: string[], sourceLanguage: string, targetLanguage: string) {
   if (!values.length) return [];
   const translated: string[] = [];
-  for (let offset = 0; offset < values.length; offset += 40) {
-    const batch = values.slice(offset, offset + 40);
+  const batches: string[][] = [];
+  let batch: string[] = [];
+  let batchCharacters = 0;
+  for (const value of values) {
+    if (batch.length && (batch.length >= 25 || batchCharacters + value.length > 6_000)) {
+      batches.push(batch);
+      batch = [];
+      batchCharacters = 0;
+    }
+    batch.push(value);
+    batchCharacters += value.length;
+  }
+  if (batch.length) batches.push(batch);
+
+  async function translateItems(items: string[]): Promise<string[]> {
+    if (items.length === 1 && items[0].length > 6_000) {
+      const pieces = splitDocument(items[0], 5_500);
+      const outputs: string[] = [];
+      for (const piece of pieces) outputs.push((await translateItems([piece]))[0]);
+      return [outputs.join("\n\n")];
+    }
     const response = await openRouterChat([
       { role: "system", content: `Kaynak dil: ${sourceLanguage || "otomatik algıla"}. Her öğeyi ${targetLanguage} diline eksiksiz çevir. Sayıları, biçim işaretlerini ve boşlukları koru. Yalnızca girişle aynı uzunlukta geçerli bir JSON string dizisi döndür; açıklama veya markdown ekleme.` },
-      { role: "user", content: JSON.stringify(batch) },
-    ], 3500);
+      { role: "user", content: JSON.stringify(items) },
+    ], 4200);
     try {
-      const parsed = JSON.parse(response.replace(/^```json\s*|\s*```$/g, ""));
-      if (!Array.isArray(parsed) || parsed.length !== batch.length || parsed.some((item) => typeof item !== "string")) throw new Error();
-      translated.push(...parsed);
+      const json = response.match(/\[[\s\S]*\]/)?.[0] ?? response.replace(/^```(?:json)?\s*|\s*```$/g, "");
+      const parsed = JSON.parse(json);
+      if (!Array.isArray(parsed) || parsed.length !== items.length || parsed.some((item) => typeof item !== "string")) throw new Error();
+      return parsed;
     } catch {
+      if (items.length > 1) {
+        const middle = Math.ceil(items.length / 2);
+        const [left, right] = await Promise.all([
+          translateItems(items.slice(0, middle)),
+          translateItems(items.slice(middle)),
+        ]);
+        return [...left, ...right];
+      }
       throw new Error("Çeviri yanıtı belge yapısına güvenli biçimde uygulanamadı. Lütfen tekrar deneyin.");
     }
   }
+
+  for (const items of batches) translated.push(...await translateItems(items));
   return translated;
 }
 

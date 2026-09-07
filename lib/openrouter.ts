@@ -17,7 +17,7 @@ export async function openRouterChat(messages: Message[], maxTokens = 1800) {
   let modelIndex = 0;
   let lastError = "AI sağlayıcısı yanıt oluşturamadı.";
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
     const model = models[Math.min(modelIndex, models.length - 1)];
     let response: Response;
     try {
@@ -37,7 +37,7 @@ export async function openRouterChat(messages: Message[], maxTokens = 1800) {
     if (!response.ok) {
       lastError = body?.error?.message ?? `OpenRouter isteği ${response.status} durumuyla başarısız oldu.`;
       if (modelIndex < models.length - 1) modelIndex += 1;
-      if (attempt < 3) continue;
+      if (attempt < 7) continue;
       throw new Error(lastError);
     }
     const content = body?.choices?.[0]?.message?.content;

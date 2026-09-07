@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ result });
     }
 
-    const chunks = splitDocument(text);
+    const chunks = splitDocument(text, action === "translate" ? 6_000 : 10_000);
     if (action === "analyze") {
       const partials = await mapWithConcurrency(chunks, 3, (chunk, index) => openRouterChat([
           { role: "system", content: "Tablo/veri bölümünü analiz et. Çalışma sayfalarını, sütunları, satırları, sayısal değerleri, kategorileri, eksik değerleri, toplam/ortalama/minimum/maksimumları, eğilimleri ve dikkat çeken ilişkileri yalnızca verilen veriye dayanarak belirt. Uydurma hesap yapma; veri yetersizse açıkça yaz." },
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
       const translated = await mapWithConcurrency(chunks, 3, (chunk) => openRouterChat([
           { role: "system", content: `Kaynak dil: ${sourceLanguage || "otomatik algıla"}. Metni ${targetLanguage} diline eksiksiz çevir. Özetleme yapma. Başlıkları, paragrafları, madde işaretlerini, sayıları ve tablo benzeri satır düzenini mümkün olduğunca koru. Açıklama veya yorum ekleme.` },
           { role: "user", content: chunk },
-        ], 3000));
+        ], 4200));
       return NextResponse.json({ result: translated.join("\n\n") });
     }
 
