@@ -76,16 +76,22 @@ export function splitDocument(text: string, maxCharacters = 10000) {
   return chunks;
 }
 
-export function relevantPassages(text: string, question: string, limit = 4) {
+export function relevantPassages(text: string, question: string, limit = 10) {
   const terms = question.toLocaleLowerCase("tr-TR").match(/[\p{L}\p{N}]{3,}/gu) ?? [];
-  return splitDocument(text, 3500)
-    .map((chunk, index) => ({
+  const chunks = splitDocument(text, 3500);
+  const ranked = chunks.map((chunk, index) => ({
       chunk,
       index,
       score: terms.reduce((score, term) => score + (chunk.toLocaleLowerCase("tr-TR").split(term).length - 1), 0),
-    }))
-    .sort((a, b) => b.score - a.score || a.index - b.index)
-    .slice(0, limit)
+    }));
+  const selected = ranked.some(({ score }) => score > 0)
+    ? ranked.sort((a, b) => b.score - a.score || a.index - b.index).slice(0, limit)
+    : Array.from({ length: Math.min(limit, chunks.length) }, (_, position) => {
+        const index = Math.round(position * Math.max(0, chunks.length - 1) / Math.max(1, Math.min(limit, chunks.length) - 1));
+        return ranked[index];
+      });
+  return selected
+    .sort((a, b) => a.index - b.index)
     .map(({ chunk }) => chunk)
     .join("\n\n---\n\n");
 }

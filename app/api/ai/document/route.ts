@@ -5,7 +5,48 @@ import { openRouterChat, relevantPassages, splitDocument } from "@/lib/openroute
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
-const maximumTextLength = 300_000;
+const maximumTextLength = 600_000;
+
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker: (item: T, index: number) => Promise<R>) {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  async function run() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await worker(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => run()));
+  return results;
+}
+
+async function mergeSummaries(partials: string[]) {
+  let level = partials;
+  while (level.length > 1) {
+    const groups: string[][] = [];
+    let group: string[] = [];
+    let size = 0;
+    for (const partial of level) {
+      if (group.length && size + partial.length > 28_000) {
+        groups.push(group);
+        group = [];
+        size = 0;
+      }
+      group.push(partial);
+      size += partial.length;
+    }
+    if (group.length) groups.push(group);
+    level = [];
+    for (const items of groups) {
+      level.push(await openRouterChat([
+        { role: "system", content: "Bölüm özetlerini sırasını ve tüm önemli bilgileri koruyarak tek bir profesyonel Türkçe özette birleştir. Tekrarları kaldır; tarihleri, kararları, sayısal verileri ve belgenin son bölümlerini atlama. Markdown başlıkları ve kısa madde işaretleri kullan. Kaynakta olmayan bilgi ekleme." },
+        { role: "user", content: items.map((item, index) => `BÖLÜM ${index + 1}\n${item}`).join("\n\n---\n\n") },
+      ], 3200));
+    }
+  }
+  return level[0] ?? "";
+}
 
 async function authenticated() {
   const cookieStore = await cookies();
@@ -18,7 +59,7 @@ export async function POST(request: Request) {
   try {
     const { action, text, question, sourceLanguage, targetLanguage, history } = await request.json();
     if (typeof text !== "string" || !text.trim()) return NextResponse.json({ error: "Belge metni bulunamadı." }, { status: 400 });
-    if (text.length > maximumTextLength) return NextResponse.json({ error: "Belge çok uzun. En fazla yaklaşık 300.000 karakter işlenebilir." }, { status: 413 });
+    if (text.length > maximumTextLength) return NextResponse.json({ error: "Belge çok uzun. En fazla yaklaşık 600.000 karakter işlenebilir." }, { status: 413 });
 
     if (action === "suggestions") {
       const context = splitDocument(text, 6500)[0];
@@ -44,13 +85,10 @@ export async function POST(request: Request) {
 
     const chunks = splitDocument(text);
     if (action === "analyze") {
-      const partials: string[] = [];
-      for (let index = 0; index < chunks.length; index += 1) {
-        partials.push(await openRouterChat([
+      const partials = await mapWithConcurrency(chunks, 3, (chunk, index) => openRouterChat([
           { role: "system", content: "Tablo/veri bölümünü analiz et. Çalışma sayfalarını, sütunları, satırları, sayısal değerleri, kategorileri, eksik değerleri, toplam/ortalama/minimum/maksimumları, eğilimleri ve dikkat çeken ilişkileri yalnızca verilen veriye dayanarak belirt. Uydurma hesap yapma; veri yetersizse açıkça yaz." },
-          { role: "user", content: `Veri bölümü ${index + 1}/${chunks.length}:\n${chunks[index]}` },
+          { role: "user", content: `Veri bölümü ${index + 1}/${chunks.length}:\n${chunk}` },
         ], 1400));
-      }
       const result = partials.length === 1 ? partials[0] : await openRouterChat([
         { role: "system", content: "Parça analizlerini tek bir profesyonel veri analizi raporunda birleştir. Tekrarları kaldır. Genel Bakış, Veri Kalitesi, Sayısal Bulgular, Eğilimler ve Sonuç başlıklarını kullan. Yalnızca sağlanan bulgulara dayan." },
         { role: "user", content: partials.join("\n\n---\n\n") },
@@ -59,29 +97,20 @@ export async function POST(request: Request) {
     }
 
     if (action === "summarize") {
-      const partials: string[] = [];
-      for (let index = 0; index < chunks.length; index += 1) {
-        partials.push(await openRouterChat([
+      const partials = await mapWithConcurrency(chunks, 3, (chunk, index) => openRouterChat([
           { role: "system", content: "Verilen belge bölümünü yalnızca içeriğine dayanarak yapılandırılmış biçimde özetle. Belge Başlığı, Genel Bakış, Temel Noktalar, Önemli Bulgular, Önemli Sayısal Veriler ve Sonuç başlıklarından uygun olanları Markdown başlıklarıyla kullan. Ana fikirleri, tarihleri, kararları ve sayısal verileri koru; yeni bilgi ekleme. Türkçe yaz." },
-          { role: "user", content: `Bölüm ${index + 1}/${chunks.length}:\n\n${chunks[index]}` },
+          { role: "user", content: `Bölüm ${index + 1}/${chunks.length}:\n\n${chunk}` },
         ], 1600));
-      }
-      const result = partials.length === 1 ? partials[0] : await openRouterChat([
-        { role: "system", content: "Bölüm özetlerini tekrarları kaldırarak profesyonel ve yapılandırılmış bir Türkçe özete dönüştür. Belge Başlığı, Genel Bakış, Temel Noktalar, Önemli Bulgular, Önemli Sayısal Veriler ve Sonuç başlıklarından belgeye uygun olanları kullan. Markdown başlıkları ve madde işaretleri kullan. Kaynakta olmayan bilgi ekleme." },
-        { role: "user", content: partials.map((item, index) => `BÖLÜM ${index + 1}\n${item}`).join("\n\n") },
-      ], Math.min(4200, 2200 + chunks.length * 180));
+      const result = partials.length === 1 ? partials[0] : await mergeSummaries(partials);
       return NextResponse.json({ result });
     }
 
     if (action === "translate") {
       if (typeof targetLanguage !== "string" || !targetLanguage.trim()) return NextResponse.json({ error: "Hedef dil gerekli." }, { status: 400 });
-      const translated: string[] = [];
-      for (let index = 0; index < chunks.length; index += 1) {
-        translated.push(await openRouterChat([
+      const translated = await mapWithConcurrency(chunks, 3, (chunk) => openRouterChat([
           { role: "system", content: `Kaynak dil: ${sourceLanguage || "otomatik algıla"}. Metni ${targetLanguage} diline eksiksiz çevir. Özetleme yapma. Başlıkları, paragrafları, madde işaretlerini, sayıları ve tablo benzeri satır düzenini mümkün olduğunca koru. Açıklama veya yorum ekleme.` },
-          { role: "user", content: chunks[index] },
+          { role: "user", content: chunk },
         ], 3000));
-      }
       return NextResponse.json({ result: translated.join("\n\n") });
     }
 

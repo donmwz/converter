@@ -124,7 +124,7 @@ async function extractPdf(buffer: Buffer) {
 
     try {
       const imagePrefix = join(directory, "page");
-      await execFileAsync("pdftoppm", ["-f", "1", "-l", "30", "-r", "170", "-jpeg", "-jpegopt", "quality=88", pdfPath, imagePrefix], { timeout: 120_000 });
+      await execFileAsync("pdftoppm", ["-f", "1", "-l", "80", "-r", "170", "-jpeg", "-jpegopt", "quality=88", pdfPath, imagePrefix], { timeout: 240_000 });
       const images = (await readdir(directory)).filter((name) => /^page-\d+\.jpg$/i.test(name)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
       if (!images.length) throw new Error("PDF sayfaları OCR için görüntülenemedi.");
       const pages: string[] = [];
@@ -133,7 +133,7 @@ async function extractPdf(buffer: Buffer) {
         await execFileAsync("tesseract", [join(directory, image), outputBase, "-l", "tur+eng", "--psm", "3"], { timeout: 120_000 });
         pages.push(await readFile(`${outputBase}.txt`, "utf8"));
       }
-      return { text: pages.join("\n\n--- Sayfa ---\n\n"), metadata: { pages: images.length, ocr: true, ocrLimited: images.length >= 30 } };
+      return { text: pages.join("\n\n--- Sayfa ---\n\n"), metadata: { pages: images.length, ocr: true, ocrLimited: images.length >= 80 } };
     } catch (ocrError) {
       const reason = ocrError instanceof Error && /ENOENT|not recognized|not found/i.test(ocrError.message)
         ? "OCR hizmeti bulunamadı. Uygulamayı güncel Docker imajıyla çalıştırın."
@@ -218,8 +218,8 @@ export async function POST(request: Request) {
       fileName: safeFileName(file.name),
       extension,
       kind: ["xlsx", "xls", "csv"].includes(extension) ? "table" : "document",
-      text: text.slice(0, 300_000),
-      metadata: { ...extracted.metadata, characters: Math.min(text.length, 300_000), clipped: text.length > 300_000 },
+      text: text.slice(0, 600_000),
+      metadata: { ...extracted.metadata, characters: Math.min(text.length, 600_000), clipped: text.length > 600_000 },
     });
   } catch (error) {
     console.error("AI belge ayrıştırma hatası:", error);
